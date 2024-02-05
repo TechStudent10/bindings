@@ -282,7 +282,18 @@ class CCMenuItemSpriteExtra : cocos2d::CCMenuItemSprite {
 	static CCMenuItemSpriteExtra* create(cocos2d::CCNode*, cocos2d::CCNode*, cocos2d::CCObject*, cocos2d::SEL_MenuHandler) = win 0x25830, mac 0x254900;
 
 	bool init(cocos2d::CCNode*, cocos2d::CCNode*, cocos2d::CCObject*, cocos2d::SEL_MenuHandler) = mac 0x254990;
-	~CCMenuItemSpriteExtra() = mac 0x255070;
+	
+	~CCMenuItemSpriteExtra() {}
+	CCMenuItemSpriteExtra() {
+		m_scaleMultiplier = 1.0f;
+		m_baseScale = 1.0f;
+		m_animationEnabled = true;
+		m_colorEnabled = false;
+		m_unknown1 = 0.0f;
+		m_colorDip = 0.0f;
+		m_animationType = MenuAnimationType::Scale;
+		m_unknown4 = 0;
+	}
 
 	/* unverified signature */
 	void setSizeMult(float mult) {
@@ -1557,7 +1568,7 @@ class GJBaseGameLayer : cocos2d::CCLayer, TriggerEffectDelegate {
 	virtual TodoReturn removeAllCheckpoints();
 	virtual TodoReturn toggleMusicInPractice();
 
-	PAD = win 0x8, android32 0x8, android64 0x8;
+	PAD = win 0x8, android32 0x8, android64 0x8, mac 0x8;
 	GJGameState m_gameState;
 	GJGameLevel* m_level;
 	PlaybackMode m_playbackMode;
@@ -3137,9 +3148,9 @@ class LevelInfoLayer : cocos2d::CCLayer, LevelDownloadDelegate, LevelUpdateDeleg
 	cocos2d::CCSprite* m_starsIcon;
 	cocos2d::CCLabelBMFont* m_starsLabel;
 	cocos2d::CCArray* m_icons;
-	PAD = win 0x10, android32 0x10, android64 0x10;
+	PAD = win 0x10, android32 0x10, android64 0x10, mac 0x10;
 	bool m_challenge;
-	PAD = win 0x4, android32 0x4, android64 0x8;
+	PAD = win 0x4, android32 0x4, android64 0x8, mac 0x8;
 	cocos2d::CCSprite* m_playSprite;
 	void* m_unk11;
 	CustomSongWidget* m_songWidget;
@@ -4183,8 +4194,8 @@ class GameLevelManager : cocos2d::CCNode {
 	TodoReturn getLocalLevel(int);
 	TodoReturn getMapPackKey(int);
 	TodoReturn getMessageKey(int);
-	TodoReturn getSavedLevel(int);
-	TodoReturn getSavedLevel(GJGameLevel*) = mac 0x509370;
+	GJGameLevel* getSavedLevel(int) = mac 0x509370;
+	GJGameLevel* getSavedLevel(GJGameLevel*);
 	TodoReturn getTopArtists(int, int);
 	TodoReturn getGauntletKey(int);
 	TodoReturn getLikeItemKey(LikeItemType, int, bool, int);
@@ -4331,7 +4342,7 @@ class GameLevelManager : cocos2d::CCNode {
 	TodoReturn unblockUser(int);
 	TodoReturn updateLevel(GJGameLevel*) = mac 0x515ec0;
 	void uploadLevel(GJGameLevel*) = win 0xFA560;
-	TodoReturn encodeDataTo(DS_Dictionary*) = win 0xF8F90;
+	TodoReturn encodeDataTo(DS_Dictionary*) = mac 0x50c700, win 0xF8F90;
 	TodoReturn hasLikedItem(LikeItemType, int, bool, int);
 	TodoReturn removeFriend(int);
 	TodoReturn restoreItems();
@@ -4361,7 +4372,7 @@ class GameLevelManager : cocos2d::CCNode {
 	TodoReturn deleteLevelList(GJLevelList*);
 	TodoReturn handleItDelayed(bool, gd::string, gd::string, GJHttpType);
 	/* unverified signature */
-	bool isFollowingUser(int) = win 0xF86A0;
+	bool isFollowingUser(int) = win 0xF86A0, mac 0x50b9d0;
 	TodoReturn likeFromLikeKey(char const*);
 	TodoReturn markItemAsLiked(LikeItemType, int, bool, int);
 	TodoReturn typeFromLikeKey(char const*);
@@ -4706,7 +4717,7 @@ class GameStatsManager : cocos2d::CCNode {
 
 	TodoReturn getItemKey(int, int);
 	gd::string getLevelKey(int, bool, bool, bool) = mac 0x6cd80, win 0x16D350;
-	gd::string getLevelKey(GJGameLevel*) = win 0x16D2E0;
+	gd::string getLevelKey(GJGameLevel*) = mac 0x6cd20, win 0x16D2E0;
 	GJChallengeItem* getChallenge(int) = mac 0x73750, win 0x170BD0;
 	TodoReturn getRewardKey(GJRewardType, int);
 	TodoReturn getStoreItem(int);
@@ -6955,7 +6966,7 @@ class CheckpointObject : cocos2d::CCNode {
 class EditorPauseLayer : CCBlockLayer, FLAlertLayerProtocol {
 	static EditorPauseLayer* create(LevelEditorLayer*);
 
-	bool init(LevelEditorLayer*) = win 0x9f520;
+	bool init(LevelEditorLayer*) = mac 0x26ef60, win 0x9f520;
 	~EditorPauseLayer();
 
 	void onNewGroupX(cocos2d::CCObject* sender);
@@ -7014,6 +7025,11 @@ class EditorPauseLayer : CCBlockLayer, FLAlertLayerProtocol {
 	virtual void keyDown(cocos2d::enumKeyCodes);
 	virtual TodoReturn customSetup();
 	virtual TodoReturn FLAlert_Clicked(FLAlertLayer*, bool);
+
+	bool m_saved;
+    CCMenuItemSpriteExtra* m_guidelinesOffButton;
+    CCMenuItemSpriteExtra* m_guidelinesOnButton;
+    LevelEditorLayer* m_editorLayer;
 }
 
 
@@ -8592,11 +8608,11 @@ class RewardsPage : FLAlertLayer, FLAlertLayerProtocol, GJRewardDelegate {
 	void onClose(cocos2d::CCObject* sender);
 	void onReward(cocos2d::CCObject* sender);
 
-	TodoReturn updateTimers(float);
+	TodoReturn updateTimers(float) = mac 0x1f9460;
 	TodoReturn tryGetRewards();
 	TodoReturn unlockLayerClosed(RewardUnlockLayer*);
 
-	virtual bool init() = win 0x2EF310;
+	virtual bool init() = mac 0x1f8590, win 0x2EF310;
 	virtual void registerWithTouchDispatcher();
 	virtual void keyBackClicked();
 	virtual TodoReturn show();
@@ -8888,17 +8904,17 @@ class GJMPDelegate {
 
 [[link(android)]]
 class GJPathsLayer : FLAlertLayer, FLAlertLayerProtocol {
-	static GJPathsLayer* create();
+	static GJPathsLayer* create() = mac 0x2dad20;
 
 	~GJPathsLayer();
 
-	void onPath(cocos2d::CCObject* sender);
+	void onPath(cocos2d::CCObject* sender) = mac 0x2db510;
 	void onClose(cocos2d::CCObject* sender);
 
 	TodoReturn nameForPath(int);
 	TodoReturn darkenButtons(bool);
 
-	virtual bool init() = win 0x1F82A0;
+	virtual bool init() = mac 0x2dae70, win 0x1F82A0;
 	virtual void onExit() = win 0x1F8756;
 	virtual void registerWithTouchDispatcher();
 	virtual void keyBackClicked();
@@ -15016,9 +15032,9 @@ class GameCell : TableViewCell {
 
 [[link(android)]]
 class GJUINode : cocos2d::CCNode {
-	static GJUINode* create(UIButtonConfig&);
+	static GJUINode* create(UIButtonConfig&) = mac 0x4a3560;
 
-	bool init(UIButtonConfig&);
+	bool init(UIButtonConfig&) = mac 0x4a5bb0;
 	~GJUINode();
 
 	TodoReturn getOpacity();
