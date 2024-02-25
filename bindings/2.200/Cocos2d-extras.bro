@@ -3396,9 +3396,9 @@ class cocos2d::CCScriptEngineProtocol {
 [[link(win, android)]]
 class cocos2d::CCSequence {
 	static cocos2d::CCSequence* create(cocos2d::CCArray*);
-	// static cocos2d::CCSequence* create(cocos2d::CCFiniteTimeAction*, ...);
+	// static cocos2d::CCSequence* create(cocos2d::CCFiniteTimeAction*, ...) = mac 0x393740;
 	static cocos2d::CCSequence* createWithTwoActions(cocos2d::CCFiniteTimeAction*, cocos2d::CCFiniteTimeAction*);
-	// static cocos2d::CCSequence* createWithVariableList(cocos2d::CCFiniteTimeAction*, char*);
+	// static cocos2d::CCSequence* createWithVariableList(cocos2d::CCFiniteTimeAction*, char*) = mac 0x3937f0;
 
 	bool initWithTwoActions(cocos2d::CCFiniteTimeAction*, cocos2d::CCFiniteTimeAction*);
 
@@ -4661,25 +4661,6 @@ class cocos2d::CCTransitionRotoZoom {
 	// CCTransitionRotoZoom();
 
 	virtual void onEnter();
-}
-
-[[link(win, android)]]
-class cocos2d::CCTransitionScene {
-	static cocos2d::CCTransitionScene* create(float, cocos2d::CCScene*);
-
-	void setNewScene(float);
-
-	// CCTransitionScene(cocos2d::CCTransitionScene const&);
-	// CCTransitionScene();
-	void finish();
-	void hideOutShowIn();
-
-	virtual void onEnter();
-	virtual void onExit();
-	virtual void cleanup();
-	virtual void draw();
-	virtual bool initWithDuration(float, cocos2d::CCScene*);
-	virtual void sceneOrder();
 }
 
 [[link(win, android)]]

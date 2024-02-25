@@ -983,17 +983,17 @@ class cocos2d::CCSpriteFrameCache {
 
 	// CCSpriteFrameCache();
 	// CCSpriteFrameCache(cocos2d::CCSpriteFrameCache const&);
-	void addSpriteFrame(cocos2d::CCSpriteFrame*, char const*);
+	void addSpriteFrame(cocos2d::CCSpriteFrame*, char const*) = mac 0x2f9810;
 	void addSpriteFramesWithDictionary(cocos2d::CCDictionary*, cocos2d::CCTexture2D*) = mac 0x2f88d0;
 	void addSpriteFramesWithFile(char const*, char const*);
 	void addSpriteFramesWithFile(char const*) = mac 0x2f9470;
-	void addSpriteFramesWithFile(char const*, cocos2d::CCTexture2D*);
-	void removeSpriteFrameByName(char const*);
-	void removeSpriteFrames();
-	void removeSpriteFramesFromDictionary(cocos2d::CCDictionary*);
-	void removeSpriteFramesFromFile(char const*);
-	void removeSpriteFramesFromTexture(cocos2d::CCTexture2D*);
-	void removeUnusedSpriteFrames();
+	void addSpriteFramesWithFile(char const*, cocos2d::CCTexture2D*) = mac 0x2f93c0;
+	void removeSpriteFrameByName(char const*) = mac 0x2f99c0;
+	void removeSpriteFrames() = mac 0x2f98f0;
+	void removeSpriteFramesFromDictionary(cocos2d::CCDictionary*) = mac 0x2f9e50;
+	void removeSpriteFramesFromFile(char const*) = mac 0x2f9c80;
+	void removeSpriteFramesFromTexture(cocos2d::CCTexture2D*) = mac 0x2fa060;
+	void removeUnusedSpriteFrames() = mac 0x2f9930;
 	cocos2d::CCSpriteFrame* spriteFrameByName(char const*) = mac 0x2fa330;
 }
 
@@ -1265,9 +1265,9 @@ class cocos2d::CCSpriteFrame {
 class cocos2d::CCLabelBMFont {
 	~CCLabelBMFont() = mac 0x59d2f0;
 	static cocos2d::CCLabelBMFont* create(char const*, char const*) = mac 0x59cc60;
-	static cocos2d::CCLabelBMFont* create(char const*, char const*, float);
-	static cocos2d::CCLabelBMFont* create(char const*, char const*, float, cocos2d::CCTextAlignment);
-	static cocos2d::CCLabelBMFont* create(char const*, char const*, float, cocos2d::CCTextAlignment, cocos2d::CCPoint);
+	static cocos2d::CCLabelBMFont* create(char const*, char const*, float) = mac 0x59cbb0;
+	static cocos2d::CCLabelBMFont* create(char const*, char const*, float, cocos2d::CCTextAlignment) = mac 0x59ca60;
+	static cocos2d::CCLabelBMFont* create(char const*, char const*, float, cocos2d::CCTextAlignment, cocos2d::CCPoint) = mac 0x59cb10;
 	static cocos2d::CCLabelBMFont* create() = mac 0x59c9f0;
 	static cocos2d::CCLabelBMFont* createBatched(char const*, char const*, cocos2d::CCArray*, int);
 	static void purgeCachedData();
@@ -1642,16 +1642,16 @@ class cocos2d::CCMenu {
 	cocos2d::CCMenuItem* itemForTouch(cocos2d::CCTouch*, bool);
 
 	virtual bool init() = mac 0x7549e0;
-	virtual void addChild(cocos2d::CCNode*);
-	virtual void addChild(cocos2d::CCNode*, int);
-	virtual void addChild(cocos2d::CCNode*, int, int);
-	virtual void removeChild(cocos2d::CCNode*, bool);
-	virtual void onExit();
-	virtual void registerWithTouchDispatcher();
+	virtual void addChild(cocos2d::CCNode*) = mac 0x7549f0;
+	virtual void addChild(cocos2d::CCNode*, int) = mac 0x754a00;
+	virtual void addChild(cocos2d::CCNode*, int, int) = mac 0x754a10;
+	virtual void removeChild(cocos2d::CCNode*, bool) = mac 0x754ab0;
+	virtual void onExit() = mac 0x754a60;
+	virtual void registerWithTouchDispatcher() = mac 0x754b60;
 
-	virtual bool ccTouchBegan(cocos2d::CCTouch*, cocos2d::CCEvent*);
-	virtual void ccTouchMoved(cocos2d::CCTouch*, cocos2d::CCEvent*);
-	virtual void ccTouchEnded(cocos2d::CCTouch*, cocos2d::CCEvent*);
+	virtual bool ccTouchBegan(cocos2d::CCTouch*, cocos2d::CCEvent*) = mac 0x754bb0;
+	virtual void ccTouchMoved(cocos2d::CCTouch*, cocos2d::CCEvent*) = mac 0x754e60;
+	virtual void ccTouchEnded(cocos2d::CCTouch*, cocos2d::CCEvent*) = mac 0x754d80;
 	virtual void ccTouchCancelled(cocos2d::CCTouch*, cocos2d::CCEvent*) = mac 0x754e00;
 }
 
@@ -1803,4 +1803,25 @@ class DS_Dictionary {
 	bool stepIntoSubDictWithKey(char const*) = mac 0x16daa0;
 	void stepOutOfSubDict();
 	bool vec2FromString(gd::string const&, cocos2d::CCPoint&);
+}
+
+[[link(win, android)]]
+class cocos2d::CCTransitionScene {
+	static cocos2d::CCTransitionScene* create(float, cocos2d::CCScene*);
+
+	void setNewScene(float);
+
+	// CCTransitionScene(cocos2d::CCTransitionScene const&);
+	// CCTransitionScene();
+	void finish();
+	void hideOutShowIn();
+
+	~CCTransitionScene() = mac 0xd0620;
+
+    virtual void onEnter() = mac 0xd0a90;
+    virtual void onExit() = mac 0xd0ae0;
+    virtual void cleanup() = mac 0xd0b40;
+    virtual void draw() = mac 0xd0840;
+    virtual bool initWithDuration(float, cocos2d::CCScene*) = mac 0xd07a0;
+    virtual void sceneOrder() = mac 0xd0830;
 }
