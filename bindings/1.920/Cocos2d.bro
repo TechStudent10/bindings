@@ -53,6 +53,7 @@ class cocos2d::CCEGLView {
 
 	void toggleFullScreen(bool);
 
+	void pollEvents();
 	virtual void end();
 	virtual void isOpenGLReady();
 	virtual void swapBuffers();
@@ -395,6 +396,11 @@ class cocos2d::CCNode {
 }
 
 [[link(win, android)]]
+class cocos2d::CCScene {
+	int getHighestChildZ();
+}
+
+[[link(win, android)]]
 class cocos2d::CCScheduler {
 	virtual void update(float dt);
 	void scheduleSelector(cocos2d::SEL_SCHEDULE, cocos2d::CCObject*, float, unsigned int, float, bool);
@@ -501,6 +507,12 @@ class cocos2d::CCMouseDispatcher {
 	void forceAddDelegate(cocos2d::CCMouseDelegate*);
 	void forceRemoveDelegate(cocos2d::CCMouseDelegate*);
 	void removeDelegate(cocos2d::CCMouseDelegate*);
+}
+
+[[link(win, android)]]
+class cocos2d::ZipUtils {
+	static gd::string decompressString(gd::string, bool);
+	static gd::string decompressString2(unsigned char* data, bool decrypt, int size);
 }
 
 [[link(win, android)]]

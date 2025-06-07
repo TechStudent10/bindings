@@ -93,21 +93,32 @@ std::string generateAddressDocs(T const& f, PlatformNumber pn) {
     for (auto platform : {Platform::MacArm, Platform::MacIntel, Platform::Windows, Platform::iOS, Platform::Android}) {
         auto status = codegen::getStatusWithPlatform(platform, f);
 
-        if (status == BindStatus::NeedsBinding) {
-            ret += fmt::format("     * @note[short] {}: 0x{:x}\n", 
-                nameForPlatform(platform),
-                codegen::platformNumberWithPlatform(platform, pn)
-            );
-        }
-        else if (status == BindStatus::Binded) {
-            ret += fmt::format("     * @note[short] {}\n", 
-                nameForPlatform(platform)
-            );
-        }
-        else if (status == BindStatus::Inlined) {
-            ret += fmt::format("     * @note[short] {}: Out of line\n", 
-                nameForPlatform(platform)
-            );
+        auto num = codegen::platformNumberWithPlatform(platform, pn);
+
+        switch (status) {
+            case BindStatus::NeedsBinding:
+                ret += fmt::format("     * @note[short] {}: 0x{:x}\n", 
+                    nameForPlatform(platform),
+                    num
+                );
+                break;
+            case BindStatus::NeedsRebinding:
+                ret += fmt::format("     * @note[short] {}: Rebinded\n", 
+                    nameForPlatform(platform)
+                );
+                break;
+            case BindStatus::Binded:
+                ret += fmt::format("     * @note[short] {}\n", 
+                    nameForPlatform(platform)
+                );
+                break;
+            case BindStatus::Inlined:
+                ret += fmt::format("     * @note[short] {}: Out of line\n", 
+                    nameForPlatform(platform)
+                );
+                break;
+            default:
+                break;
         }
     }
 
@@ -125,7 +136,7 @@ std::string generateDocs(std::string const& docs) {
     return ret;
 }
 
-std::string generateBindingHeader(Root const& root, ghc::filesystem::path const& singleFolder, std::unordered_set<std::string>* generatedFiles) {
+std::string generateBindingHeader(Root const& root, std::filesystem::path const& singleFolder, std::unordered_set<std::string>* generatedFiles) {
     std::string output;
     std::string base_directory = singleFolder.filename().string();
 
@@ -147,12 +158,11 @@ std::string generateBindingHeader(Root const& root, ghc::filesystem::path const&
             if (codegen::getStatus(f) == BindStatus::Missing) continue;
 
             FunctionProto const* fb = &f.prototype;
-            char const* used_format = format_strings::function_definition;
 
             std::string addressDocs = generateAddressDocs(f, f.binds);
             std::string docs = generateDocs(fb->attributes.docs);
 
-            single_output += fmt::format(used_format,
+            single_output += fmt::format(format_strings::function_definition,
                 fmt::arg("virtual", ""),
                 fmt::arg("static", ""),
                 fmt::arg("class_name", ""),
@@ -170,7 +180,7 @@ std::string generateBindingHeader(Root const& root, ghc::filesystem::path const&
     }
 
         for (auto& cls : root.classes) {
-        if (is_cocos_class(cls.name))
+        if (is_cocos_or_fmod_class(cls.name))
             continue;
 
         std::string filename = (codegen::getUnqualifiedClassName(cls.name) + ".hpp");
@@ -196,7 +206,7 @@ std::string generateBindingHeader(Root const& root, ghc::filesystem::path const&
         }
 
         for (auto dep : cls.attributes.depends) {
-            if (is_cocos_class(dep)) continue;
+            if (is_cocos_or_fmod_class(dep)) continue;
 
             std::string depfilename = (codegen::getUnqualifiedClassName(dep) + ".hpp");
 
@@ -217,9 +227,9 @@ std::string generateBindingHeader(Root const& root, ghc::filesystem::path const&
         // what.
         if (!cls.superclasses.empty()) {
             single_output += fmt::format(
-                is_cocos_class(cls.superclasses[0]) 
+                fmt::runtime(is_cocos_class(cls.superclasses[0]) 
                     ? format_strings::custom_constructor_cutoff
-                    : format_strings::custom_constructor,
+                    : format_strings::custom_constructor),
                 fmt::arg("class_name", cls.name),
                 fmt::arg("first_base", cls.superclasses[0])
             );
@@ -268,11 +278,8 @@ std::string generateBindingHeader(Root const& root, ghc::filesystem::path const&
 
                 fb = &fn->prototype;
 
-                if (codegen::platformNumber(fn->binds) == -1 && codegen::getStatus(*fn) != BindStatus::Binded) {
-                    used_format = format_strings::error_definition;
-
-                    if (fb->type != FunctionType::Normal)
-                        continue;
+                if (codegen::platformNumber(fn->binds) == -1 && codegen::getStatus(*fn) == BindStatus::NeedsBinding) {
+                    continue;
                 }
 
                 addressDocs = generateAddressDocs(*fn, fn->binds);
@@ -280,7 +287,7 @@ std::string generateBindingHeader(Root const& root, ghc::filesystem::path const&
 
             std::string docs = generateDocs(fb->attributes.docs);
 
-            single_output += fmt::format(used_format,
+            single_output += fmt::format(fmt::runtime(used_format),
                 fmt::arg("virtual", str_if("virtual ", fb->is_virtual)),
                 fmt::arg("static", str_if("static ", fb->is_static)),
                 fmt::arg("class_name", cls.name),

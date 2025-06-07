@@ -31,7 +31,7 @@ namespace geode::modifier {{
 	#endif
 )GEN";
 
-        char const* concepts_declare_identifier = R"GEN(
+        constexpr char const* concepts_declare_identifier = R"GEN(
 	#ifndef GEODE_CONCEPT_CHECK_{function_name}
 		#define GEODE_CONCEPT_CHECK_{function_name}
 		GEODE_CONCEPT_FUNCTION_CHECK({function_name}) 
@@ -68,7 +68,7 @@ namespace geode::modifier {{
     }
 }
 
-std::string generateModifyHeader(Root const& root, ghc::filesystem::path const& singleFolder, std::unordered_set<std::string>* generatedFiles) {
+std::string generateModifyHeader(Root const& root, std::filesystem::path const& singleFolder, std::unordered_set<std::string>* generatedFiles) {
     std::string output;
     std::string base_directory = singleFolder.filename().string();
 
@@ -94,6 +94,9 @@ std::string generateModifyHeader(Root const& root, ghc::filesystem::path const& 
         }
         else if (is_cocos_class(c.name)) {
             class_include = "#include <cocos2d.h>";
+        }
+        else if (is_fmod_class(c.name)) {
+            class_include = "#include <fmod.hpp>";
         }
         else {
             class_include = fmt::format(
@@ -150,17 +153,12 @@ std::string generateModifyHeader(Root const& root, ghc::filesystem::path const& 
                 continue;
             }
             else if (status == BindStatus::Unbindable && fn->prototype.type == FunctionType::Normal) {
-                if (is_cocos_class(c.name)) {
-                    format_string = format_strings::apply_error_defined;
-                }
-                else {
-                    format_string = format_strings::apply_error;
-                }
+                format_string = format_strings::apply_error_defined;
             }
             else if (status == BindStatus::Inlined && fn->prototype.type == FunctionType::Normal || codegen::platformNumber(fn->binds) == 0x9999999) {
                 format_string = format_strings::apply_error_inline;
             }
-            else if ((status == BindStatus::NeedsBinding && codegen::platformNumber(f) > 0) || status == BindStatus::Binded) {
+            else if ((status == BindStatus::NeedsBinding && codegen::platformNumber(f) > 0) || status == BindStatus::Binded || status == BindStatus::NeedsRebinding) {
                 // only if has an address
                 // allow bound functions (including ctors/dtors)
                 switch (fn->prototype.type) {
@@ -176,12 +174,7 @@ std::string generateModifyHeader(Root const& root, ghc::filesystem::path const& 
                 }
             }
             else if (fn->prototype.type == FunctionType::Normal) {
-                if (is_cocos_class(c.name)) {
-                    format_string = format_strings::apply_error_defined;
-                }
-                else {
-                    format_string = format_strings::apply_error;
-                }
+                format_string = format_strings::apply_error_defined;
             }
             else {
                 continue;
@@ -189,7 +182,7 @@ std::string generateModifyHeader(Root const& root, ghc::filesystem::path const& 
 
             auto parameter_types = codegen::getParameterTypes(fn->prototype);
             single_output += fmt::format(
-                format_string,
+                fmt::runtime(format_string),
                 fmt::arg("address_inline", codegen::getAddressString(c, f)),
                 fmt::arg("class_name", c.name),
                 fmt::arg("function_name", fn->prototype.name),

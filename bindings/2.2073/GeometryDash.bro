@@ -2198,9 +2198,9 @@ class CheckpointObject : cocos2d::CCNode {
     short m_unkShort1;
     PAD = win 0x2;
     void* m_maybeAPointer2;
-    gd::vector<DynamicSaveObject> m_vectorDynamicSaveObjects;
-    gd::vector<ActiveSaveObject1> m_vectorActiveSaveObjects1;
-    gd::vector<ActiveSaveObject2> m_vectorActiveSaveObjects2;
+    gd::vector<SavedObjectStateRef> m_vectorDynamicSaveObjects;
+    gd::vector<SavedActiveObjectState> m_vectorActiveSaveObjects1;
+    gd::vector<SavedSpecialObjectState> m_vectorActiveSaveObjects2;
     EffectManagerState m_effectManagerState;
     cocos2d::CCArray* m_gradientTriggerObjectArray;
     bool m_unkBool1;
@@ -3492,6 +3492,12 @@ class DashRingObject : RingObject {
 
     virtual void customObjectSetup(gd::vector<gd::string>&, gd::vector<void*>&) = m1 0x166c5c, imac 0x1a48d0;
     virtual gd::string getSaveString(GJBaseGameLayer*) = imac 0x1a4a40, m1 0x166db4;
+
+    float m_dashSpeed;
+    float m_endBoost;
+    float m_maxDuration;
+    bool m_allowCollide;
+    bool m_stopSlide;
 }
 
 [[link(android)]]
@@ -5080,7 +5086,7 @@ class FMODAudioEngine : cocos2d::CCNode {
     TodoReturn fadeInBackgroundMusic(float) = imac 0x3d49d0;
     void fadeInMusic(float, int) = win 0x5c3c0;
     TodoReturn fadeMusic(float, int, float, float);
-    float fadeOutMusic(float, int) = win 0x5c500, m1 0x35da6c;
+    void fadeOutMusic(float, int) = win 0x5c500, m1 0x35da6c;
     TodoReturn getActiveMusic(int);
     FMOD::Channel* getActiveMusicChannel(int musicChannel) = win inline, imac 0x3cf520 {
         // TODO: this might do other checks or whatever but i cant be bothered
@@ -6517,7 +6523,7 @@ class GameObject : CCSpritePlus {
     bool getGroupDisabled();
     int getGroupID(int) = m1 0x4e0c3c;
     gd::string getGroupString();
-    cocos2d::CCPoint getLastPosition();
+    cocos2d::CCPoint const& getLastPosition();
     GJSpriteColor* getMainColor();
     int getMainColorMode();
     int getObjectDirection();
@@ -8529,7 +8535,7 @@ class GJBaseGameLayer : cocos2d::CCLayer, TriggerEffectDelegate {
     cocos2d::CCParticleSystemQuad* m_unk3238;
     bool m_unk3240;
     bool m_unk3241;
-    bool m_unk3242;
+    bool m_playerDied;
     double m_extraDelta;
     bool m_started;
     bool m_unk3251;
@@ -14637,7 +14643,7 @@ class PlayerObject : GameObject, AnimatedSpriteDelegate {
     TodoReturn checkSnapJumpToObject(GameObject*);
     void collidedWithObject(float, GameObject*, cocos2d::CCRect, bool) = win 0x37ba60, imac 0x3f4e20, m1 0x3752e4;
     void collidedWithObject(float, GameObject*) = imac 0x3fb6b0, m1 0x37a630;
-    void collidedWithObjectInternal(float, GameObject*, cocos2d::CCRect, bool) = win 0x37bb20, m1 0x376f04;
+    int collidedWithObjectInternal(float, GameObject*, cocos2d::CCRect, bool) = win 0x37bb20, m1 0x376f04;
     void collidedWithSlope(float dt, GameObject* object, bool forced) = imac 0x3f4ec0;
     void collidedWithSlopeInternal(float dt, GameObject* object, bool forced) = win 0x3798c0;
     TodoReturn convertToClosestRotation(float);
@@ -14769,7 +14775,14 @@ class PlayerObject : GameObject, AnimatedSpriteDelegate {
     TodoReturn saveToCheckpoint(PlayerCheckpoint*);
     void setSecondColor(cocos2d::ccColor3B const&) = win 0x3874f0, imac 0x3ec530, m1 0x36deb8;
     void setupStreak() = win 0x372930, m1 0x36c978;
-    void setYVelocity(double, int) = win 0x372e80;
+    void setYVelocity(double velocity, int) = win 0x372e80 {
+        double rounded = (int)velocity;
+        if (velocity != rounded) {
+            m_yVelocity = std::round((velocity - rounded) * 1000) / 1000. + rounded;
+        } else {
+            m_yVelocity = velocity;
+        }
+    }
     TodoReturn spawnCircle();
     TodoReturn spawnCircle2();
     TodoReturn spawnDualCircle();

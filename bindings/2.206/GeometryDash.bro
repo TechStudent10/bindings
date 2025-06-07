@@ -824,7 +824,7 @@ class BrowseSmartKeyLayer : BrowseSmartTemplateLayer {
 	virtual void onBack(cocos2d::CCObject* sender) = m1 0x450094, imac 0x4f6c90, ios 0x7aa48;
 }
 
-[[link(android)]]
+[[link(android), depends(SmartPrefabResult)]]
 class BrowseSmartTemplateLayer : FLAlertLayer {
 	// virtual ~BrowseSmartTemplateLayer();
 
@@ -2198,9 +2198,9 @@ class CheckpointObject : cocos2d::CCNode {
 	short m_unkShort1;
 	PAD = win 0x2;
 	void* m_maybeAPointer2;
-	gd::vector<DynamicSaveObject> m_vectorDynamicSaveObjects;
-	gd::vector<ActiveSaveObject1> m_vectorActiveSaveObjects1;
-	gd::vector<ActiveSaveObject2> m_vectorActiveSaveObjects2;
+	gd::vector<SavedObjectStateRef> m_vectorDynamicSaveObjects;
+	gd::vector<SavedActiveObjectState> m_vectorActiveSaveObjects1;
+	gd::vector<SavedSpecialObjectState> m_vectorActiveSaveObjects2;
 	EffectManagerState m_effectManagerState;
 	cocos2d::CCArray* m_gradientTriggerObjectArray;
 	bool m_unkBool1;
@@ -3490,6 +3490,12 @@ class DashRingObject : RingObject {
 
 	virtual void customObjectSetup(gd::vector<gd::string>&, gd::vector<void*>&) = m1 0x16eaac, imac 0x1b0340, ios 0x38c038;
 	virtual gd::string getSaveString(GJBaseGameLayer*) = m1 0x16ec04, imac 0x1b04b0, ios 0x38c17c;
+
+	float m_dashSpeed;
+	float m_endBoost;
+	float m_maxDuration;
+	bool m_allowCollide;
+	bool m_stopSlide;
 }
 
 [[link(android)]]
@@ -4522,7 +4528,7 @@ class EffectGameObject : EnhancedGameObject {
 	// property 81
 	bool m_touchHoldMode;
 	// property 82
-	TouchToggleMode m_touchToggleMode;
+	TouchTriggerType m_touchToggleMode;
 	// property 198
 	int m_touchPlayerMode; // TODO: add enum
 	// property 89
@@ -4619,12 +4625,12 @@ class EffectManagerState {
 	gd::vector<CollisionTriggerAction> m_vectorCollisionTriggerAction;
 	gd::vector<ToggleTriggerAction> m_vectorToggleTriggerAction;
 	gd::vector<SpawnTriggerAction> m_vectorSpawnTriggerAction;
-	gd::unordered_map<int,int> m_unorderedMapInt_int;
+	gd::unordered_map<int,int> m_itemCountMap;
 	gd::unordered_map<int,bool> m_unorderedMapInt_bool;
 	gd::vector<GroupCommandObject2> m_vectorGroupCommandObject2;
 	gd::unordered_map<int,std::pair<double,double>> m_unorderedMapInt_pair_double_double;
 	gd::unordered_set<int> m_unorderedSet_int2;
-	gd::unordered_map<int,TimerItem> m_unorderedMapInt_TimerItem;
+	gd::unordered_map<int,TimerItem> m_timerItemMap;
 	gd::unordered_map<int,gd::vector<TimerTriggerAction>> m_unorderedMapInt_vectorTimerTriggerAction;
 }
 
@@ -5084,7 +5090,7 @@ class FMODAudioEngine : cocos2d::CCNode {
 	}
 	TodoReturn fadeInBackgroundMusic(float) = imac 0x3eb9f0;
 	void fadeInMusic(float, int) = win 0x5b170;
-	float fadeOutMusic(float, int) = win 0x5b2b0, m1 0x36bec0, imac 0x3ef250;
+	void fadeOutMusic(float, int) = win 0x5b2b0, m1 0x36bec0, imac 0x3ef250;
 	TodoReturn getActiveMusic(int);
 	FMOD::Channel* getActiveMusicChannel(int musicChannel) = m1 0x364ca8, imac 0x3e5fd0, win inline {
 		// TODO: this might do other checks or whatever but i cant be bothered
@@ -6496,7 +6502,7 @@ class GameObject : CCSpritePlus {
 	bool getGroupDisabled() = m1 0x4f660c, imac 0x5c73e0;
 	int getGroupID(int) = imac 0x5c7080, m1 0x4f62e0;
 	gd::string getGroupString();
-	cocos2d::CCPoint getLastPosition() = imac 0x5d3a00, m1 0x501170;
+	cocos2d::CCPoint const& getLastPosition() = imac 0x5d3a00, m1 0x501170;
 	GJSpriteColor* getMainColor();
 	int getMainColorMode();
 	int getObjectDirection(); // probably a enum
@@ -6507,7 +6513,7 @@ class GameObject : CCSpritePlus {
 	cocos2d::CCRect getOuterObjectRect();
 	int getParentMode();
 	GJSpriteColor* getRelativeSpriteColor(int);
-	cocos2d::CCPoint getScalePosDelta();
+	cocos2d::CCPoint getScalePosDelta() = m1 0x4f5fc0;
 	GJSpriteColor* getSecondaryColor();
 	int getSecondaryColorMode();
 	float getSlopeAngle();
@@ -6574,9 +6580,9 @@ class GameObject : CCSpritePlus {
 	bool shouldLockX();
 	bool shouldNotHideAnimFreeze();
 	bool shouldShowPickupEffects();
-	bool slopeFloorTop();
+	bool slopeFloorTop() = m1 0x4ffb30;
 	bool slopeWallLeft();
-	double slopeYPos(cocos2d::CCRect);
+	double slopeYPos(cocos2d::CCRect) = m1 0x4ffbec;
 	double slopeYPos(float) = win 0x1973f0;
 	double slopeYPos(GameObject*);
 	void spawnDefaultPickupParticle(GJBaseGameLayer*);
@@ -8152,7 +8158,7 @@ class GJBaseGameLayer : cocos2d::CCLayer, TriggerEffectDelegate {
 	TodoReturn updateSavePositionObjects();
 	void updateShaderLayer(float) = win 0x212aa0, imac 0x12fdd0, m1 0x107d80;
 	void updateSpecialGroupData() = win 0x1fecf0, imac 0x10aa20, m1 0xea268;
-	TodoReturn updateSpecialLabels() = win 0x228fb0;
+	void updateSpecialLabels() = win 0x228fb0;
 	void updateStaticCameraPos(cocos2d::CCPoint pos, bool staticX, bool staticY, bool followOrSmoothEase, float time, int easingType, float easingRate) = win 0x22e360, imac 0x1191c0, m1 0xf60ec;
 	TodoReturn updateStaticCameraPosToGroup(int, bool, bool, bool, float, float, int, float, bool, float) = win 0x22df70;
 	TodoReturn updateTimeMod(float, bool, bool);
@@ -8954,8 +8960,8 @@ class GJEffectManager : cocos2d::CCNode {
 	TodoReturn timeForItem(int);
 	TodoReturn timerExists(int);
 	TodoReturn toggleGroup(int, bool);
-	TodoReturn toggleItemPersistent(int, bool);
-	TodoReturn toggleTimerPersistent(int, bool);
+	void toggleItemPersistent(int, bool);
+	void toggleTimerPersistent(int, bool);
 	TodoReturn transferPersistentItems();
 	TodoReturn traverseInheritanceChain(InheritanceNode*);
 	TodoReturn tryGetMoveCommandNode(int);
@@ -8994,10 +9000,10 @@ class GJEffectManager : cocos2d::CCNode {
 	gd::vector<ColorAction*> m_unkVector2c0;
 	gd::vector<ColorActionSprite*> m_unkVector2d8;
 	gd::vector<bool> m_unkVector2f0;
-	gd::unordered_map<int, int> m_itemIDs;
-	gd::unordered_map<int, int> m_unkMap350;
-	gd::unordered_set<int> m_unkMap388;
-	gd::unordered_map<int, TimerItem> m_unkMap3c0;
+	gd::unordered_map<int, int> m_itemCountMap;
+	gd::unordered_map<int, int> m_persistentItemCountMap;
+	gd::unordered_set<int> m_persistentTimerItemSet;
+	gd::unordered_map<int, TimerItem> m_timerItemMap;
 	gd::unordered_map<int, std::vector<TimerTriggerAction>> m_unkMap3f8;
 	cocos2d::CCArray* m_unkArray430;
 	gd::vector<bool> m_unkVector438;
@@ -10808,7 +10814,7 @@ class GJShopLayer : cocos2d::CCLayer, GJPurchaseDelegate, DialogDelegate, Reward
 	int m_affordDialogIndex;
 }
 
-[[link(android)]]
+[[link(android), depends(SmartPrefabResult)]]
 class GJSmartBlockPreview : cocos2d::CCNode {
 	// virtual ~GJSmartBlockPreview();
 
@@ -10848,7 +10854,7 @@ class GJSmartPrefab : cocos2d::CCObject {
 	virtual bool canEncode() = m1 0x3a4c04, imac 0x432110, ios 0x858c;
 }
 
-[[link(android)]]
+[[link(android), depends(SmartPrefabResult)]]
 class GJSmartTemplate : cocos2d::CCObject {
 	// virtual ~GJSmartTemplate();
 
@@ -11908,6 +11914,10 @@ class LevelAreaInnerLayer : cocos2d::CCLayer, DialogDelegate {
 
 	virtual void keyBackClicked() = win 0x2b52c0, m1 0x21d698, imac 0x277aa0, ios 0x355720;
 	virtual void dialogClosed(DialogLayer*) = win 0x2b4940, m1 0x21d4c8, imac 0x2778c0, ios 0x3555d4;
+
+	PAD = win 0x8;
+	bool m_isBusy;
+	int m_unk1ac;
 }
 
 [[link(android)]]
@@ -14588,10 +14598,10 @@ class PlayerObject : GameObject, AnimatedSpriteDelegate {
 	void bumpPlayer(float, int, bool, GameObject*) = win 0x37d6b0, imac 0x423f30, m1 0x398b20;
 	TodoReturn buttonDown(PlayerButton);
 	TodoReturn canStickToGround();
-	TodoReturn checkSnapJumpToObject(GameObject*);
+	void checkSnapJumpToObject(GameObject*) = m1 0x38c5a8;
 	void collidedWithObject(float, GameObject*, cocos2d::CCRect, bool) = win 0x36fa40, m1 0x38714c, imac 0x40fa20;
 	void collidedWithObject(float, GameObject*) = m1 0x38c4ec, imac 0x416340;
-	void collidedWithObjectInternal(float, GameObject*, cocos2d::CCRect, bool) = win 0x36fb00, m1 0x388d80, imac 0x411b50;
+	int collidedWithObjectInternal(float, GameObject*, cocos2d::CCRect, bool) = win 0x36fb00, m1 0x388d80, imac 0x411b50;
 	void collidedWithSlope(float dt, GameObject* object , bool forced) = imac 0x40fac0;
 	void collidedWithSlopeInternal(float dt, GameObject* object, bool forced) = win 0x36d8a0;
 	TodoReturn convertToClosestRotation(float);
@@ -14614,7 +14624,7 @@ class PlayerObject : GameObject, AnimatedSpriteDelegate {
 		m_glowColor = color;
 	}
 	void enablePlayerControls() = win 0x37d510, m1 0x398844, imac 0x423c90;
-	void exitPlatformerAnimateJump();
+	void exitPlatformerAnimateJump() = m1 0x383798;
 	void fadeOutStreak2(float) = win 0x37e1a0, m1 0x392438, imac 0x41cfd0, ios 0x237f98;
 	void flashPlayer(float, float, cocos2d::ccColor3B mainColor, cocos2d::ccColor3B secondColor) = imac 0x418210;
 	void flipGravity(bool, bool) = win 0x3781e0, m1 0x3848b4, imac 0x40c9c0;
@@ -14722,7 +14732,14 @@ class PlayerObject : GameObject, AnimatedSpriteDelegate {
 	TodoReturn saveToCheckpoint(PlayerCheckpoint*);
 	void setSecondColor(cocos2d::ccColor3B const&) = win 0x37b3b0, m1 0x37fac8, imac 0x407090;
 	void setupStreak() = win 0x366920, m1 0x37e59c, imac 0x405810;
-	void setYVelocity(double, int) = win 0x366e70;
+	void setYVelocity(double velocity, int) = win 0x366e70 {
+		double rounded = (int)velocity;
+		if (velocity != rounded) {
+		    m_yVelocity = std::round((velocity - rounded) * 1000) / 1000. + rounded;
+		} else {
+			m_yVelocity = velocity;
+		}
+	}
 	TodoReturn spawnCircle();
 	TodoReturn spawnCircle2();
 	TodoReturn spawnDualCircle();
@@ -14767,10 +14784,10 @@ class PlayerObject : GameObject, AnimatedSpriteDelegate {
 	TodoReturn updateCheckpointMode(bool);
 	TodoReturn updateCheckpointTest();
 	void updateCollide(PlayerCollisionDirection, GameObject*) = win 0x372080, m1 0x38bb70, imac 0x415900;
-	void updateCollideBottom(float, GameObject*);
+	void updateCollideBottom(float, GameObject*) = m1 0x38c9ec;
 	void updateCollideLeft(float, GameObject*);
 	void updateCollideRight(float, GameObject*);
-	void updateCollideTop(float, GameObject*);
+	void updateCollideTop(float, GameObject*) = m1 0x38c960;
 	void updateDashAnimation();
 	void updateDashArt() = win 0x3741f0, imac 0x41a140;
 	void updateEffects(float param) = win inline, imac 0x40bd80, m1 0x383d54 {

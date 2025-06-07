@@ -38,6 +38,18 @@ class ChanceObject {
 
 }
 
+class SmartPrefabResult {
+	GJSmartPrefab* m_smartPrefab;
+	gd::string m_binaryKey;
+	gd::string m_prefabKey;
+	int m_prefabCount;
+	bool m_unrequired;
+	int m_rotation;
+	bool m_flipX;
+	bool m_flipY;
+	bool m_ignoreCorners;
+}
+
 class GameObjectPhysics {
 	PAD = win 0x28;
 }
@@ -96,7 +108,7 @@ class GJPointDouble {
 
 }
 
-class DynamicSaveObject {
+class SavedObjectStateRef {
     GameObject* m_gameObject;
     double m_unkDouble1;
     double m_unkDouble2;
@@ -108,14 +120,14 @@ class DynamicSaveObject {
     float m_unkFloat6;
 }
 
-class ActiveSaveObject1 {
+class SavedActiveObjectState {
 	GameObject* m_gameObject;
 	bool m_unkBool1;
 	bool m_unkBool2;
 	PAD = win 0x2;
 }
 
-class ActiveSaveObject2 {
+class SavedSpecialObjectState {
 	GameObject* m_gameObject;
 	EasingType m_easingType;
 }
