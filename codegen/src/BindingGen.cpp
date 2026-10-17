@@ -10,7 +10,8 @@ namespace { namespace format_strings {
     constexpr char const* class_includes = R"GEN(#pragma once
 #include <stdexcept>
 #include <Geode/platform/platform.hpp>
-#include <Geode/c++stl/gdstdlib.hpp>
+#include <unordered_map>
+#include <unordered_set>
 #include <cocos2d.h>
 #include <cocos-ext.h>
 #include <Geode/GeneratedPredeclare.hpp>
@@ -40,6 +41,9 @@ public:
 	constexpr char const* custom_constructor_cutoff = R"GEN(    GEODE_CUSTOM_CONSTRUCTOR_CUTOFF({class_name}, {first_base})
 )GEN";
 
+    constexpr char const* custom_constructor_begin = R"GEN(    GEODE_CUSTOM_CONSTRUCTOR_BEGIN({class_name})
+)GEN";
+
     constexpr char const* function_definition = R"GEN(
     /**
 {docs}{docs_addresses}     */
@@ -63,6 +67,11 @@ public:
     
     // requires: type, member_name, array
     constexpr char const* member_definition = R"GEN({private}    {type} {member_name};{public}
+)GEN";
+
+    constexpr char const* renamed_member_definition = R"GEN({private}    union {{
+        {type} {member_name}{{}};
+{renamed_members}    }};{public}
 )GEN";
 
     constexpr char const* pad_definition = R"GEN(    GEODE_PAD({hardcode});
@@ -158,6 +167,9 @@ std::string generateBindingHeader(Root const& root, std::filesystem::path const&
             if (codegen::getStatus(f) == BindStatus::Missing) continue;
 
             FunctionProto const* fb = &f.prototype;
+            if ((fb->attributes.links & Platform::Windows) != Platform::None) {
+                continue;
+            }
 
             std::string addressDocs = generateAddressDocs(f, f.binds);
             std::string docs = generateDocs(fb->attributes.docs);
@@ -179,7 +191,7 @@ std::string generateBindingHeader(Root const& root, std::filesystem::path const&
         writeFile(singleFolder / filename, single_output);
     }
 
-        for (auto& cls : root.classes) {
+    for (auto& cls : root.classes) {
         if (is_cocos_or_fmod_class(cls.name))
             continue;
 
@@ -233,6 +245,14 @@ std::string generateBindingHeader(Root const& root, std::filesystem::path const&
                 fmt::arg("class_name", cls.name),
                 fmt::arg("first_base", cls.superclasses[0])
             );
+        } else {
+            // TODO: handle case where a class has no base, but has children
+            if (cls.name == "KeybindSource") {
+                single_output += fmt::format(
+                    format_strings::custom_constructor_begin,
+                    fmt::arg("class_name", cls.name)
+                );
+            }
         }
 
         bool unimplementedField = false;
@@ -252,12 +272,26 @@ std::string generateBindingHeader(Root const& root, std::filesystem::path const&
                     if (opt != nullptr && std::string_view(opt) == "1") {
                         unimplementedField = false;
                     }
-                    single_output += fmt::format(format_strings::member_definition,
-                        fmt::arg("private", unimplementedField ? "private:\n" : ""),
-                        fmt::arg("public", unimplementedField ? "\npublic:" : ""),
-                        fmt::arg("type", m->type.name),
-                        fmt::arg("member_name", m->name + str_if(fmt::format("[{}]", m->count), m->count))
-                    );
+                    if (m->attributes.renamed_from.empty()) {
+                        single_output += fmt::format(format_strings::member_definition,
+                            fmt::arg("private", unimplementedField ? "private:\n" : ""),
+                            fmt::arg("public", unimplementedField ? "\npublic:" : ""),
+                            fmt::arg("type", m->type.name),
+                            fmt::arg("member_name", m->name + str_if(fmt::format("[{}]", m->count), m->count))
+                        );
+                    } else {
+                        std::string renamed_members;
+                        for (auto& renamed : m->attributes.renamed_from) {
+                            renamed_members += fmt::format("        {} {};\n", m->type.name, renamed);
+                        }
+                        single_output += fmt::format(format_strings::renamed_member_definition,
+                            fmt::arg("private", unimplementedField ? "private:\n" : ""),
+                            fmt::arg("public", unimplementedField ? "\npublic:" : ""),
+                            fmt::arg("type", m->type.name),
+                            fmt::arg("member_name", m->name + str_if(fmt::format("[{}]", m->count), m->count)),
+                            fmt::arg("renamed_members", renamed_members)
+                        );
+                    }
                 }
 
                 continue;

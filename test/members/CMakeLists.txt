@@ -7,22 +7,39 @@ add_library(${PROJECT_NAME} SHARED)
 set(GEODE_IS_MEMBER_TEST ON)
 add_compile_definitions(GEODE_IS_MEMBER_TEST)
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 
 include(../../cmake/CPM.cmake)
 
 set(MAT_JSON_AS_INTERFACE ON)
-CPMAddPackage("gh:fmtlib/fmt#11.1.4")
-CPMAddPackage("gh:geode-sdk/json@3.2.1")
-CPMAddPackage("gh:geode-sdk/TulipHook@2.4.4")
+CPMAddPackage("gh:fmtlib/fmt#12.1.0")
+CPMAddPackage("gh:geode-sdk/result@1.4.1")
+CPMAddPackage("gh:geode-sdk/json@3.3.0")
+CPMAddPackage("gh:geode-sdk/TulipHook@3.1.7")
+CPMAddPackage("gh:geode-sdk/nontype_functional#a029428")
+set(ARC_FEATURE_FULL OFF CACHE BOOL "" FORCE)
+CPMAddPackage("gh:dankmeme01/asp2#70fa109")
+CPMAddPackage("gh:dankmeme01/arc@1.5.3")
 
-target_link_libraries(${PROJECT_NAME} PRIVATE fmt GeodeResult mat-json TulipHookInclude)
+set_target_properties(asp PROPERTIES UNITY_BUILD ON UNITY_BUILD_BATCH_SIZE 64)
+set_target_properties(arc PROPERTIES UNITY_BUILD ON UNITY_BUILD_BATCH_SIZE 64)
+
+if (WIN32)
+	target_compile_definitions(fmt PRIVATE _HAS_ITERATOR_DEBUGGING=0)
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE mat-json TulipHookInclude nontype_functional arc)
 
 cmake_path(SET GEODE_LOADER_PATH $ENV{GEODE_SDK}/loader)
 
 include($ENV{GEODE_SDK}/cmake/PlatformDetect.cmake)
 
 if (GEODE_TARGET_PLATFORM STREQUAL "Win64")
+	if (NOT DEFINED GEODE_GD_VERSION)
+		set(GEODE_GD_VERSION 2.2081)
+		set(GEODE_COMP_GD_VERSION 22081)
+	endif()
+
 	set(GEODE_MEMBER_TEST_PLATFORM "win")
 	set(GEODE_MEMBER_TEST_BINARY "Geode.lib")
 
@@ -34,8 +51,15 @@ if (GEODE_TARGET_PLATFORM STREQUAL "Win64")
 		opengl32
 	)
 
-	target_sources(${PROJECT_NAME} PRIVATE Windows.cpp)
+	target_sources(${PROJECT_NAME} PRIVATE ${GEODE_GD_VERSION}/Windows.cpp)
+	set_source_files_properties(${GEODE_GD_VERSION}/Windows.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC -DNOMINMAX)
 elseif (GEODE_TARGET_PLATFORM STREQUAL "Android64")
+	if (NOT DEFINED GEODE_GD_VERSION)
+		set(GEODE_GD_VERSION 2.2081)
+		set(GEODE_COMP_GD_VERSION 22081)
+	endif()
+
 	set(GEODE_MEMBER_TEST_PLATFORM "android64")
 	set(GEODE_MEMBER_TEST_BINARY "Geode.android64.so")
 
@@ -45,8 +69,14 @@ elseif (GEODE_TARGET_PLATFORM STREQUAL "Android64")
 		GLESv2
 	)
 
-	target_sources(${PROJECT_NAME} PRIVATE Android64.cpp)
+	target_sources(${PROJECT_NAME} PRIVATE ${GEODE_GD_VERSION}/Android64.cpp)
+	set_source_files_properties(${GEODE_GD_VERSION}/Android64.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 elseif (GEODE_TARGET_PLATFORM STREQUAL "Android32")
+	if (NOT DEFINED GEODE_GD_VERSION)
+		set(GEODE_GD_VERSION 2.2081)
+		set(GEODE_COMP_GD_VERSION 22081)
+	endif()
+
 	set(GEODE_MEMBER_TEST_PLATFORM "android32")
 	set(GEODE_MEMBER_TEST_BINARY "Geode.android32.so")
 
@@ -56,8 +86,14 @@ elseif (GEODE_TARGET_PLATFORM STREQUAL "Android32")
 		GLESv2
 	)
 
-	target_sources(${PROJECT_NAME} PRIVATE Android32.cpp)
+	target_sources(${PROJECT_NAME} PRIVATE ${GEODE_GD_VERSION}/Android32.cpp)
+	set_source_files_properties(${GEODE_GD_VERSION}/Android32.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 elseif (GEODE_TARGET_PLATFORM STREQUAL "MacOS")
+	if (NOT DEFINED GEODE_GD_VERSION)
+		set(GEODE_GD_VERSION 2.2081)
+		set(GEODE_COMP_GD_VERSION 22081)
+	endif()
+
 	set(GEODE_MEMBER_TEST_PLATFORM "mac")
 	set(GEODE_MEMBER_TEST_BINARY "Geode.dylib")
 
@@ -67,8 +103,15 @@ elseif (GEODE_TARGET_PLATFORM STREQUAL "MacOS")
 	)
 
 	add_definitions(-DGL_SILENCE_DEPRECATION)
-	target_sources(${PROJECT_NAME} PRIVATE MacOSArm.cpp MacOSIntel.cpp)
+	target_sources(${PROJECT_NAME} PRIVATE ${GEODE_GD_VERSION}/MacOSArm.cpp ${GEODE_GD_VERSION}/MacOSIntel.cpp)
+	set_source_files_properties(${GEODE_GD_VERSION}/MacOSArm.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+	set_source_files_properties(${GEODE_GD_VERSION}/MacOSIntel.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 elseif (GEODE_TARGET_PLATFORM STREQUAL "iOS")
+	if (NOT DEFINED GEODE_GD_VERSION)
+		set(GEODE_GD_VERSION 2.2081)
+		set(GEODE_COMP_GD_VERSION 22081)
+	endif()
+
 	set(GEODE_MEMBER_TEST_PLATFORM "ios")
 	set(GEODE_MEMBER_TEST_BINARY "Geode.ios.dylib")
 
@@ -77,15 +120,13 @@ elseif (GEODE_TARGET_PLATFORM STREQUAL "iOS")
 	)
 
 	add_definitions(-DGLES_SILENCE_DEPRECATION)
-	target_sources(${PROJECT_NAME} PRIVATE iOS.cpp)
+	target_sources(${PROJECT_NAME} PRIVATE ${GEODE_GD_VERSION}/iOS.cpp)
+	set_source_files_properties(${GEODE_GD_VERSION}/iOS.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE GEODE_MOD_ID="${GEODE_MOD_ID}")
 
-if (NOT DEFINED GEODE_GD_VERSION)
-	set(GEODE_GD_VERSION 2.2074)
-	set(GEODE_COMP_GD_VERSION 22074)
-endif()
+target_compile_definitions(${PROJECT_NAME} PRIVATE GEODE_COMP_GD_VERSION=${GEODE_COMP_GD_VERSION})
 
 if (WIN32)
 	# without this, some stl structures can have a wrong size when cross compiling from linux
@@ -112,16 +153,29 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 	${GEODE_LOADER_PATH}/include/Geode/cocos/extensions
 	${GEODE_LOADER_PATH}/include/Geode/fmod
 	${GeodeBindings_SOURCE_DIR}/bindings/include
+	${TestMembers_SOURCE_DIR}/include
 )
 
 if (WIN32)
 	if (MSVC)
 		target_compile_options(${PROJECT_NAME} PRIVATE /bigobj)
+	elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		target_link_options(${PROJECT_NAME} PRIVATE "-Wl,/errorlimit:0")
 	endif()
+else()
+	# Doesnt work on macos
+	# target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--error-limit=0")
 endif()
 
-target_sources(${PROJECT_NAME} PRIVATE ${GEODE_MEMBER_TEST_CODEGEN_PATH}/Geode/GeneratedSource.cpp)
-target_compile_definitions(${PROJECT_NAME} PRIVATE GEODE_USE_NEW_DESTRUCTOR_LOCK=1)
+file(GLOB GEODE_INLINE_SOURCES ${GEODE_MEMBER_TEST_BINDINGS_PATH}/inline/*.cpp)
+file(GLOB GEODE_GENERATED_SOURCES ${GEODE_MEMBER_TEST_CODEGEN_PATH}/Geode/source/*.cpp)
+
+target_sources(${PROJECT_NAME} PRIVATE ${GEODE_MEMBER_TEST_CODEGEN_PATH}/Geode/GeneratedSource.cpp ${GEODE_INLINE_SOURCES} ${GEODE_GENERATED_SOURCES})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    UNITY_BUILD ON
+    UNITY_BUILD_BATCH_SIZE 128
+)
 
 message(STATUS "Fetching Geode nightly Git hash")
 
