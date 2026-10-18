@@ -1,4 +1,4 @@
-#include <Geode/Bindings.hpp>
+#include <Geode/binding/FLAlertLayer.hpp>
 
 FLAlertLayer* FLAlertLayer::create(char const* title, const std::string& desc, char const* btn) {
     return FLAlertLayer::create(nullptr, title, desc, btn, nullptr, 300.0);
@@ -11,16 +11,6 @@ FLAlertLayer* FLAlertLayer::create(FLAlertLayerProtocol* delegate, char const* t
 void FLAlertLayer::rebuildContent() {}
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
-#endif
-
-#if defined(GEODE_IS_WINDOWS)
-// TODO: 2.209
-void FLAlertLayer::incrementForcePrio() {
-    if (!m_forcePrioRegistered) {
-        m_forcePrioRegistered = true;
-        // cocos2d::CCDirector::sharedDirector()->getTouchDispatcher()->registerForcePrio(this, 2);
-    }
-}
 #endif
 
 #if defined(GEODE_IS_MACOS) || defined(GEODE_IS_ANDROID)

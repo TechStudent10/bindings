@@ -1,4 +1,7 @@
-#include <Geode/Bindings.hpp>
+#include <Geode/binding/GameObject.hpp>
+#include <Geode/binding/ColorActionSprite.hpp>
+#include <Geode/binding/GJEffectManager.hpp>
+#include <Geode/binding/OBB2D.hpp>
 
 void GameObject::firstSetup() {}
 
@@ -694,6 +697,22 @@ void GameObject::updateBlendMode() {
         return;
     }
     m_shouldBlendDetail = m_detailColor->getColorMode() != 1012 ? this->shouldBlendColor(m_detailColor, false) : shouldBlend;
+}
+
+void GameObject::updateCustomScaleX(float scaleX) {
+    m_customScaleX = std::round(m_customScaleX * 1000.f) / 1000.f;
+    m_scaleX = m_customScaleX;
+    this->setScaleX(scaleX);
+    m_isObjectRectDirty = true;
+    m_isOrientedBoxDirty = true;
+}
+
+void GameObject::updateCustomScaleY(float scaleY) {
+    m_customScaleY = std::round(m_customScaleY * 1000.f) / 1000.f;
+    m_scaleY = m_customScaleY;
+    this->setScaleY(scaleY);
+    m_isObjectRectDirty = true;
+    m_isOrientedBoxDirty = true;
 }
 
 void GameObject::updateHSVState() {

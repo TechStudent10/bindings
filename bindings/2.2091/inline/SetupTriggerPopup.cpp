@@ -1,4 +1,9 @@
-#include <Geode/Bindings.hpp>
+#include <Geode/mapping/CCObject.hpp>
+#include <Geode/binding/SetupTriggerPopup.hpp>
+#include <Geode/binding/CCTextInputNode.hpp>
+#include <Geode/binding/EffectGameObject.hpp>
+#include <Geode/binding/GameToolbox.hpp>
+#include <Geode/binding/Slider.hpp>
 
 #if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_MACOS)
 SetupTriggerPopup::SetupTriggerPopup() {
@@ -12,6 +17,7 @@ SetupTriggerPopup::SetupTriggerPopup() {
     m_multiTriggered = false;
     m_width = 0.f;
     m_height = 0.f;
+    m_verticalOffset = 0.f;
     m_disableTextDelegate = false;
     m_valueToggles = nullptr;
     m_inputNodes = nullptr;

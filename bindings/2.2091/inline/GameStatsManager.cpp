@@ -1,4 +1,9 @@
-#include <Geode/Bindings.hpp>
+#include <Geode/binding/GameStatsManager.hpp>
+#include <Geode/binding/GJChallengeItem.hpp>
+#include <Geode/binding/GJGameLevel.hpp>
+#include <Geode/binding/GJLevelList.hpp>
+#include <Geode/binding/GameToolbox.hpp>
+#include <Geode/binding/LevelTools.hpp>
 
 GameStatsManager* GameStatsManager::get() {
     return GameStatsManager::sharedState();
@@ -215,6 +220,19 @@ int GameStatsManager::getBaseCurrency(int stars, bool mainLevel, int levelID) {
             default: return 0;
         }
     }
+}
+
+int GameStatsManager::getBaseCurrencyForLevel(GJGameLevel* level) {
+    auto stars = level->m_stars.value();
+    auto attempts = level->m_attempts.value() - level->m_jumps.value();
+    auto mainlevel = level->m_levelType == GJLevelType::Main;
+    if (!mainlevel) {
+        auto key = this->getCurrencyKey(level);
+        auto dict = stars - level->m_stars.value() > 0 ? m_onlineCurrencyScores : m_mainCurrencyScores;
+        auto cur = dict->valueForKey(key.c_str())->intValue();
+        if (attempts < cur) attempts = cur;
+    }
+    return this->getBaseCurrency(attempts, mainlevel, level->m_levelID.value() - level->m_levelID.value() - static_cast<int>(level->m_levelType));
 }
 
 int GameStatsManager::getBaseDiamonds(int stars) {

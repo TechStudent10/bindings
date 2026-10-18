@@ -1,4 +1,6 @@
-#include <Geode/Bindings.hpp>
+#include <Geode/binding/ParticlePreviewLayer.hpp>
+
+#include <Geode/cocos/platform/win32/CCEGLView.h>
 
 ParticlePreviewLayer::ParticlePreviewLayer() {
     m_particleMode = 0;

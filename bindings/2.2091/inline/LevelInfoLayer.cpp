@@ -1,4 +1,7 @@
-#include <Geode/Bindings.hpp>
+#include <Geode/binding/LevelInfoLayer.hpp>
+#include <Geode/binding/EditLevelLayer.hpp>
+#include <Geode/binding/GJGameLevel.hpp>
+#include <Geode/binding/LoadingCircle.hpp>
 
 #if !defined(GEODE_IS_IOS)
 LevelInfoLayer::LevelInfoLayer() {
@@ -34,6 +37,9 @@ LevelInfoLayer::LevelInfoLayer() {
     m_playSprite = nullptr;
     m_progressTimer = nullptr;
     m_songWidget = nullptr;
+#if defined(GEODE_IS_WINDOWS)
+    m_unkBool = false;
+#endif
 }
 #endif
 

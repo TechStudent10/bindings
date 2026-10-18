@@ -1,4 +1,4 @@
-#include <Geode/Bindings.hpp>
+#include <Geode/binding/FMODAudioEngine.hpp>
 
 FMODAudioEngine* FMODAudioEngine::get() {
     return FMODAudioEngine::sharedEngine();
@@ -71,7 +71,7 @@ FMODAudioEngine::~FMODAudioEngine() {
 }
 
 FMODAudioEngine* FMODAudioEngine::sharedEngine() {
-    auto** instancePtr = reinterpret_cast<FMODAudioEngine**>(geode::base::get() + 0x906f60);
+    auto** instancePtr = reinterpret_cast<FMODAudioEngine**>(geode::base::get() + 0x90bf60);
     if (!*instancePtr) {
         *instancePtr = new FMODAudioEngine();
         (*instancePtr)->init();
