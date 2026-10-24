@@ -93,6 +93,11 @@ void GJBaseGameLayer::addToObjectsToShow(GameObject* object) {
     m_activeObjectsCount++;
 }
 
+GameObject* GJBaseGameLayer::getGroupParent(int groupId) {
+    return static_cast<GameObject*>(m_parentGroupsDict->objectForKey(groupId));
+}
+
+
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
 void GJBaseGameLayer::animateInGroundNew(bool unk1, float unk2, bool unk3) {}
 
@@ -257,8 +262,8 @@ void GJBaseGameLayer::removeCustomEnterEffects(int id, bool enter) {
 
 void GJBaseGameLayer::resetRecordFull() {
     m_queuedRecordedButtons.clear();
-    m_unk3330.clear();
-    m_unk3370 = 0;
+    m_recordedCheckpoints.clear();
+    m_replayParseCounter = 0;
     m_queuedRecordedButtonsSize = 0;
     m_currentStep = 0;
 }
@@ -662,10 +667,6 @@ float GJBaseGameLayer::getGroundHeight(PlayerObject* player, int type) {
         return std::max(height1, height2);
     }
     return this->getGroundHeightForMode(type);
-}
-
-GameObject* GJBaseGameLayer::getGroupParent(int groupId) {
-    return static_cast<GameObject*>(m_parentGroupsDict->objectForKey(groupId));
 }
 
 std::string GJBaseGameLayer::getGroupParentsString(GameObject* object) {
@@ -1200,6 +1201,7 @@ void GJBaseGameLayer::setActiveStartPosObject(StartPosObject* startPos) {
             m_startPosObject->release();
         }
         m_startPosObject = startPos;
+        m_isTestMode = startPos != nullptr;
     }
 }
 
@@ -1336,6 +1338,12 @@ void GJBaseGameLayer::switchToRollMode(PlayerObject* player, GameObject* portal,
     player->switchedToMode(GameObjectType::BallPortal);
     auto lastPortal = this->processCameraObject(portal, player);
     player->toggleRollMode(true, lastPortal && lastPortal->m_hasNoEffects);
+}
+
+void GJBaseGameLayer::switchToSpiderMode(PlayerObject* player, GameObject* portal, bool noPortal) {
+    player->switchedToMode(GameObjectType::SpiderPortal);
+    auto lastPortal = this->processCameraObject(portal, player);
+    player->toggleSpiderMode(true, lastPortal && lastPortal->m_hasNoEffects);
 }
 
 void GJBaseGameLayer::testInstantCountTrigger(int itemID, int compareCount, int groupID, bool activateGroup, int triggerMode, std::vector<int> const& remapKeys, int uniqueID, int controlID) {
@@ -1790,13 +1798,6 @@ float GJBaseGameLayer::getGroundHeightForMode(int type) {
         }
     }
     return 270.f;
-}
-
-bool GJBaseGameLayer::isButtonAllowed(bool down, int button, bool isPlayer1) {
-    auto id = (int)down + button * 1000 + (int)isPlayer1 * 10;
-    if (m_allowedButtons.contains(id)) return false;
-    m_allowedButtons.insert(id);
-    return true;
 }
 #endif
 
