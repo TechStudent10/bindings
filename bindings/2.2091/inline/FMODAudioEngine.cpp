@@ -1,7 +1,12 @@
 #include <Geode/binding/FMODAudioEngine.hpp>
+#include <algorithm>
 
 FMODAudioEngine* FMODAudioEngine::get() {
     return FMODAudioEngine::sharedEngine();
+}
+
+void FMODAudioEngine::logLifecycleState(char const* state) {
+    // empty no-op in 2.2092 android at least
 }
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
@@ -79,16 +84,6 @@ FMODAudioEngine* FMODAudioEngine::sharedEngine() {
     return *instancePtr;
 }
 
-void FMODAudioEngine::activateQueuedMusic(int channel) {
-    if (m_audioState.m_queuedMusicForChannels2.count(channel) != 0) {
-        this->triggerQueuedMusic(m_audioState.m_queuedMusicForChannels2[channel]);
-        m_audioState.m_queuedMusicForChannels2.erase(channel);
-    }
-    else if (m_audioState.m_queuedMusicForChannels1.count(channel) != 0) {
-        m_audioState.m_queuedMusicForChannels1[channel].m_noPrepare = true;
-    }
-}
-
 void FMODAudioEngine::channelLinkSound(int id, FMODSound* sound) {
     sound->m_playCount++;
     sound->m_playIndex = (*reinterpret_cast<int*>(geode::base::get() + 0x90bf4c))++;
@@ -121,7 +116,7 @@ void FMODAudioEngine::enableMetering() {
 }
 
 void FMODAudioEngine::fadeInBackgroundMusic(float value) {
-    m_backgroundMusicChannel->setVolume(value);
+    m_backgroundMusicChannel->setVolume(0.f);
     m_backgroundMusicFade = value;
     m_musicFadeStart = -1.f;
 }
@@ -175,10 +170,6 @@ void FMODAudioEngine::pauseAllAudio() {
     m_globalChannel->setPaused(true);
 }
 
-void FMODAudioEngine::pauseAllEffects() {
-    m_globalChannel->setPaused(true);
-}
-
 void FMODAudioEngine::pauseAllMusic(bool force) {
     for (auto& [id, music] : m_fmodMusic) {
         if (force || !music.m_dontReset) {
@@ -212,10 +203,6 @@ void FMODAudioEngine::resumeAllAudio() {
     m_globalChannel->setPaused(false);
 }
 
-void FMODAudioEngine::resumeAllEffects() {
-    m_globalChannel->setPaused(false);
-}
-
 void FMODAudioEngine::resumeAudio() {
     this->start();
 }
@@ -235,13 +222,39 @@ void FMODAudioEngine::setBackgroundMusicVolume(float volume) {
 void FMODAudioEngine::setEffectsVolume(float volume) {
     m_sfxVolume = volume;
     if (m_globalChannel) m_globalChannel->setVolume(volume);
+    if (m_unkChannel) m_unkChannel->setVolume(volume);
 }
 
 void FMODAudioEngine::stop() {
     if (m_stopped) return;
-    m_stopped = true;
-    m_system->mixerSuspend();
+
+    this->logLifecycleState("stop in");
+
+    bool paused = false;
+    m_globalChannel->getPaused(&paused);
+    if (!paused) {
+        m_globalChannelPaused = true;
+        m_globalChannel->setPaused(true);
+    }
+
+    for (auto& [id, music] : m_fmodMusic) {
+        auto channel = this->channelForChannelID(music.m_channelID);
+        bool channelPaused = true;
+
+        if (channel) {
+            channel->getPaused(&channelPaused);
+        }
+
+        if (!channelPaused) {
+            channel->setPaused(true);
+            if (std::find(m_stoppedChannelIDs.begin(), m_stoppedChannelIDs.end(), music.m_channelID) == m_stoppedChannelIDs.end())
+                m_stoppedChannelIDs.push_back(music.m_channelID);
+        }
+    }
+
     m_system->update();
+    m_stopped = true;
+    m_lastResult = m_system->mixerSuspend();
     this->pauseSchedulerAndActions();
 }
 
@@ -251,18 +264,6 @@ void FMODAudioEngine::stopChannel(int id) {
 
 void FMODAudioEngine::stopMusic(int id) {
     this->stopAndRemoveMusic(id);
-}
-
-void FMODAudioEngine::stopMusicNotInSet(std::unordered_set<int>& musicIDs) {
-    std::unordered_set<int> totalIDs;
-    for (auto& [id, _] : m_fmodMusic) {
-        totalIDs.insert(id);
-    }
-    for (auto& id : totalIDs) {
-        if (musicIDs.count(id) == 0) {
-            this->stopMusic(id);
-        }
-    }
 }
 
 void FMODAudioEngine::updateBackgroundFade() {
@@ -279,6 +280,7 @@ void FMODAudioEngine::updateBackgroundFade() {
 }
 
 void FMODAudioEngine::updateMetering() {
+    if (!m_metering) return;
     FMOD_DSP_METERING_INFO info{};
     m_mainDSP->getMeteringInfo(nullptr, &info);
     auto peak = info.numchannels == 2 ? (info.peaklevel[0] + info.peaklevel[1]) / 2.f : info.peaklevel[0];
@@ -287,7 +289,7 @@ void FMODAudioEngine::updateMetering() {
     peak += .1f;
     m_pulse1 = peak;
     auto counter = m_pulseCounter;
-    if (counter < 3 || peak < m_pulse2 * 1.1f || (peak < m_pulse3 * .95f && peak > m_pulse3 * .2f)) {
+    if (counter < 3 || peak < m_pulse2 * 1.1f || (peak < m_pulse3 * .95f && m_pulse2 > m_pulse3 * .2f)) {
         peak = m_pulse2 * .93f;
     }
     else {

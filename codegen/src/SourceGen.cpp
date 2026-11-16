@@ -131,7 +131,7 @@ auto {class_name}::{function_name}({parameters}){const} -> decltype({function_na
 )GEN";
 
 	constexpr char const* declare_standalone = R"GEN(
-{return} {function_name}({parameters}) {{
+{extern_def}{return} {function_name}({parameters}) {{
 	using FunctionType = decltype({function_name}({arguments}))(*)({parameter_types});
 	static auto func = wrapFunction<FunctionType>({address_inline}, tulip::hook::TulipConvention::{convention});
 	return reinterpret_cast<FunctionType>(func)({arguments});
@@ -144,13 +144,14 @@ auto {class_name}::{function_name}({parameters}){const} -> decltype({function_na
 }}
 
 bool areSuperclassesEmpty(Class const& c) {
-	return c.superclasses.empty() || (c.superclasses.size() == 1 && c.superclasses[0].find("CCCopying") != std::string::npos);
+    auto superclasses = codegen::getSuperclasses(c);
+	return superclasses.empty() || (superclasses.size() == 1 && superclasses[0].find("CCCopying") != std::string::npos);
 }
 
 std::string generateBindingSource(Root const& root, std::filesystem::path const& singleFolder, bool skipPugixml, bool skipInlines, std::unordered_set<std::string>* generatedFiles) {
 	std::string output = fmt::format(format_strings::source_start,
 		fmt::arg("includes", codegen::getIncludes(root)),
-		fmt::arg("class_include", "")
+		fmt::arg("class_include", "#include <Geode/binding/Standalones.hpp>\n")
 	);
 
 	for (auto& f : root.functions) {
@@ -174,7 +175,8 @@ std::string generateBindingSource(Root const& root, std::filesystem::path const&
 			fmt::arg("parameters", codegen::getParameters(f.prototype)),
 			fmt::arg("parameter_types", codegen::getParameterTypes(f.prototype)),
 			fmt::arg("arguments", codegen::getParameterNames(f.prototype)),
-			fmt::arg("parameter_comma", str_if(", ", !f.prototype.args.empty()))
+			fmt::arg("parameter_comma", str_if(", ", !f.prototype.args.empty())),
+            fmt::arg("extern_def", str_if("extern \"C\" ", is_kazmath_func(f.prototype.name)))
 		);
     }
 
@@ -188,6 +190,13 @@ std::string generateBindingSource(Root const& root, std::filesystem::path const&
 			fmt::arg("includes", codegen::getIncludes(root)),
 			fmt::arg("class_include", codegen::getClassIncludeString(c.name))
 		);
+		auto addDestructorLockInclude = [&, added = false]() mutable {
+			if (!added) {
+				added = true;
+				// destructorlock is declared in ccobject for some reason
+				output = "#include <Geode/cocos/cocoa/CCObject.h>\n" + output;
+			}
+		};
 
 		std::string filename = (codegen::getUnqualifiedClassName(c.name) + ".cpp");
 
@@ -268,9 +277,13 @@ std::string generateBindingSource(Root const& root, std::filesystem::path const&
 								else {
 									used_declare_format = format_strings::declare_constructor;
 								}
+								// declare_constructor uses DestructorLock
+								addDestructorLockInclude();
 								break;
 							case FunctionType::Dtor:
 								used_declare_format = areSuperclassesEmpty(c) ? format_strings::declare_destructor_baseless : format_strings::declare_destructor;
+								// declare_destructor uses DestructorLock
+								addDestructorLockInclude();
 								break;
 						}
 

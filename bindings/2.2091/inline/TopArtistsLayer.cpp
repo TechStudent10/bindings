@@ -2,6 +2,8 @@
 #include <Geode/binding/TopArtistsLayer.hpp>
 #include <Geode/binding/GameLevelManager.hpp>
 
+bool TopArtistsLayer::ownsTouchPrio() { return true; }
+
 TopArtistsLayer::TopArtistsLayer() {
     m_topArtists = nullptr;
     m_listLayer = nullptr;
@@ -16,10 +18,6 @@ bool TopArtistsLayer::isCorrect(char const* key) {
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-TopArtistsLayer::~TopArtistsLayer() {
-    auto glm = GameLevelManager::sharedState();
-    if (glm->m_onlineListDelegate == this) glm->m_onlineListDelegate = nullptr;
-}
 
 TopArtistsLayer* TopArtistsLayer::create() {
     auto ret = new TopArtistsLayer();

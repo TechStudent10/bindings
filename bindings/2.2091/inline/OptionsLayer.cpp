@@ -1,5 +1,12 @@
 #include <Geode/binding/OptionsLayer.hpp>
+#include <Geode/binding/VideoOptionsLayer.hpp>
 #include <Geode/binding/GameManager.hpp>
+#include <Geode/binding/CCMenuItemToggler.hpp>
+#include <Geode/mapping/CCDelayTime.hpp>
+#include <Geode/mapping/CCSequence.hpp>
+#include <Geode/mapping/CCCallFunc.hpp>
+#include <Geode/mapping/CCLabelBMFont.hpp>
+#include <Geode/mapping/CCMenu.hpp>
 
 OptionsLayer::OptionsLayer() {
     m_optionsMenu = nullptr;
@@ -23,7 +30,7 @@ CCMenuItemToggler* OptionsLayer::createToggleButton(std::string text, cocos2d::S
     auto label = cocos2d::CCLabelBMFont::create(text.c_str(), "bigFont.fnt");
     m_mainLayer->addChild(label);
     label->setAnchorPoint({ .0f, .5f });
-    label->setPosition(position + cocos2d::CCPoint { onSprite->getContentSize().width * .5f + 6.4f, 0.f });
+    label->setPosition(position + cocos2d::CCPoint { (onSprite->getContentSize().width * .5f) * .8f + 8.f, 0.f });
     auto width = label->getContentSize().width;
     if (width > 120.f) label->setScale(120.f / width);
     label->setScale(std::min(label->getScale(), .35f));
@@ -40,8 +47,19 @@ void OptionsLayer::onProgressBar(cocos2d::CCObject* sender) {
 }
 
 void OptionsLayer::onRecordReplays(cocos2d::CCObject* sender) {
+    if (m_recordReplays) return;
     auto gameManager = GameManager::sharedState();
-    gameManager->m_recordGameplay = !gameManager->m_recordGameplay;
+    if (gameManager->m_recordGameplay) {
+        this->tryEnableRecord();
+        return;
+    }
+    gameManager->m_recordGameplay = true;
+    m_recordReplays = true;
+    this->runAction(cocos2d::CCSequence::create(
+        cocos2d::CCDelayTime::create(1.f),
+        cocos2d::CCCallFunc::create(this, callfunc_selector(OptionsLayer::tryEnableRecord)),
+        nullptr
+    ));
 }
 
 void OptionsLayer::tryEnableRecord() {

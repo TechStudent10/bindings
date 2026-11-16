@@ -1,17 +1,28 @@
 #include <Geode/mapping/CCHttpClient.hpp>
 #include <Geode/mapping/CCHttpRequest.hpp>
 #include <Geode/mapping/CCObject.hpp>
+#include <Geode/mapping/CCString.hpp>
+#include <Geode/mapping/CCActionManager.hpp>
+#include <Geode/mapping/CCCallFuncND.hpp>
+#include <Geode/mapping/CCSequence.hpp>
+#include <Geode/mapping/CCDelayTime.hpp>
+#include <Geode/mapping/CCDictionary.hpp>
+#include <Geode/mapping/CCArray.hpp>
 #include <Geode/binding/GameLevelManager.hpp>
 #include <Geode/binding/GJFriendRequest.hpp>
 #include <Geode/binding/GJGameLevel.hpp>
 #include <Geode/binding/GJHttpResult.hpp>
 #include <Geode/binding/GJLevelList.hpp>
+#include <Geode/binding/GJMultiplayerManager.hpp>
 #include <Geode/binding/GameStatsManager.hpp>
 #include <Geode/binding/LevelBrowserLayer.hpp>
 #include <Geode/binding/LevelListDeleteDelegate.hpp>
 #include <Geode/binding/ListUploadDelegate.hpp>
 #include <Geode/binding/LocalLevelManager.hpp>
 #include <Geode/binding/UserListDelegate.hpp>
+#include <Geode/binding/GJSmartTemplate.hpp>
+#include <Geode/binding/GJMapPack.hpp>
+#include <Geode/binding/GJSearchObject.hpp>
 
 GameLevelManager* GameLevelManager::get() {
     return GameLevelManager::sharedState();
@@ -100,21 +111,13 @@ const char* GameLevelManager::getUserInfoKey(int id) {
     return cocos2d::CCString::createWithFormat("account_%i", id)->getCString();
 }
 
-void GameLevelManager::handleItDelayed(bool success, std::string response, std::string tag, GJHttpType type) {
-    auto result = GJHttpResult::create(true, response, tag, type);
-    result->retain();
-    m_pActionManager->addAction(cocos2d::CCSequence::create(
-        cocos2d::CCDelayTime::create(.1f),
-        cocos2d::CCCallFuncND::create(this, callfuncND_selector(GJMultiplayerManager::handleItND), result),
-        nullptr
-    ), this, false);
-}
-
+/*#if defined(GEODE_IS_IOS)
 void GameLevelManager::handleItND(cocos2d::CCNode* node, void* data) {
     auto result = static_cast<GJHttpResult*>(data);
     this->handleIt(result->m_success, result->m_response, result->m_requestTag, result->m_httpType);
     result->release();
 }
+#endif*/
 
 bool GameLevelManager::hasDownloadedList(int id) {
     return this->hasDownloadedLevel(-id);
@@ -154,7 +157,7 @@ int GameLevelManager::specialFromLikeKey(char const* key) {
     std::string keyStr = key;
     auto parts = cocos2d::CCArray::create();
     auto start = 0;
-    auto index = keyStr.find_first_of(",");
+    auto index = keyStr.find_first_of("_");
     auto size = keyStr.size();
     while (index != std::string::npos) {
         auto str = keyStr.substr(start, index - start);
@@ -162,7 +165,10 @@ int GameLevelManager::specialFromLikeKey(char const* key) {
             parts->addObject(cocos2d::CCString::create(str));
         }
         start = index + 1;
-        index = keyStr.find_first_of(",", start);
+        index = keyStr.find_first_of("_", start);
+    }
+    if (start < size) {
+        parts->addObject(cocos2d::CCString::create(keyStr.substr(start)));
     }
     return parts->count() > 4 ? atoi(static_cast<cocos2d::CCString*>(parts->objectAtIndex(4))->getCString()) : 0;
 }
@@ -233,16 +239,12 @@ void GameLevelManager::deleteSmartTemplate(GJSmartTemplate* smartTemplate) {
     m_smartTemplates->removeObject(smartTemplate);
 }
 
-void GameLevelManager::followUser(int id) {
-    m_followedCreators->setObject(cocos2d::CCString::create("1"), cocos2d::CCString::createWithFormat("%i", id)->getCString());
-}
-
 GJFriendRequest* GameLevelManager::friendRequestFromAccountID(int id) {
     return static_cast<GJFriendRequest*>(m_friendRequests->objectForKey(id));
 }
 
 const char* GameLevelManager::getAccountCommentKey(int accountID, int page) {
-    return cocos2d::CCString::createWithFormat("%i_%i", accountID, page)->getCString();
+    return cocos2d::CCString::createWithFormat("a_%i_%i", accountID, page)->getCString();
 }
 
 int GameLevelManager::getActiveDailyID(GJTimedLevelType type) {
@@ -339,8 +341,11 @@ bool GameLevelManager::getDiffVal(int diff) {
 }
 
 const char* GameLevelManager::getFriendRequestKey(bool sent, int page, std::string const& p0, bool p1) {
-    return "TODO 2.209";
-    // return cocos2d::CCString::createWithFormat("fReq_%i_%i", (int)sent, page)->getCString();
+    auto prefix = p1 ? "fReqI" : "fReq";
+    if (p0.empty()) {
+        return cocos2d::CCString::createWithFormat("%s_%i_%i", prefix, (int)sent, page)->getCString();
+    }
+    return cocos2d::CCString::createWithFormat("%sS_%i_%i_%s", prefix, (int)sent, page, p0.c_str())->getCString();
 }
 
 std::string GameLevelManager::getGauntletSearchKey(int id) {
@@ -405,7 +410,7 @@ int GameLevelManager::getNextFreeTemplateID() {
 }
 
 const char* GameLevelManager::getPostCommentKey(int parentID) {
-    return cocos2d::CCString::createWithFormat("c%i", parentID)->getCString();
+    return cocos2d::CCString::createWithFormat("c_%i", parentID)->getCString();
 }
 
 GJGameLevel* GameLevelManager::getSavedDailyLevelFromLevelID(int id) {
@@ -456,6 +461,16 @@ const char* GameLevelManager::getTopArtistsKey(int page) {
     return cocos2d::CCString::createWithFormat("topArtists_%i", page)->getCString();
 }
 
+void GameLevelManager::handleItDelayed(bool success, std::string response, std::string tag, GJHttpType type) {
+    auto result = GJHttpResult::create(true, response, tag, type);
+    result->retain();
+    m_pActionManager->addAction(cocos2d::CCSequence::create(
+        cocos2d::CCDelayTime::create(.1f),
+        cocos2d::CCCallFuncND::create(this, callfuncND_selector(GameLevelManager::handleItND), result),
+        nullptr
+    ), this, false);
+}
+
 bool GameLevelManager::hasDailyStateBeenLoaded(GJTimedLevelType type) {
     if (type == GJTimedLevelType::Daily) return m_dailyTimeLeft > 0;
     if (type == GJTimedLevelType::Weekly) return m_weeklyTimeLeft > 0;
@@ -469,16 +484,16 @@ void GameLevelManager::invalidateUserList(UserListType type, bool reload) {
 }
 
 bool GameLevelManager::isUpdateValid(int id) {
-    const char* str = cocos2d::CCString::createWithFormat("%i", id)->getCString();
+    const char* str = this->getLevelKey(id);
 
-    return this->isTimeValid(str, 3600.f);
+    return this->isTimeValid(str, 600.f);
 }
 
 int GameLevelManager::itemIDFromLikeKey(char const* key) {
     std::string keyStr = key;
     auto parts = cocos2d::CCArray::create();
     auto start = 0;
-    auto index = keyStr.find_first_of(",");
+    auto index = keyStr.find_first_of("_");
     auto size = keyStr.size();
     while (index != std::string::npos) {
         auto str = keyStr.substr(start, index - start);
@@ -486,7 +501,10 @@ int GameLevelManager::itemIDFromLikeKey(char const* key) {
             parts->addObject(cocos2d::CCString::create(str));
         }
         start = index + 1;
-        index = keyStr.find_first_of(",", start);
+        index = keyStr.find_first_of("_", start);
+    }
+    if (start < size) {
+        parts->addObject(cocos2d::CCString::create(keyStr.substr(start)));
     }
     return parts->count() > 4 ? atoi(static_cast<cocos2d::CCString*>(parts->objectAtIndex(2))->getCString()) : 0;
 }
@@ -495,7 +513,7 @@ int GameLevelManager::levelIDFromPostCommentKey(char const* key) {
     std::string keyStr = key;
     auto parts = cocos2d::CCArray::create();
     auto start = 0;
-    auto index = keyStr.find_first_of(",");
+    auto index = keyStr.find_first_of("_");
     auto size = keyStr.size();
     while (index != std::string::npos) {
         auto str = keyStr.substr(start, index - start);
@@ -503,7 +521,10 @@ int GameLevelManager::levelIDFromPostCommentKey(char const* key) {
             parts->addObject(cocos2d::CCString::create(str));
         }
         start = index + 1;
-        index = keyStr.find_first_of(",", start);
+        index = keyStr.find_first_of("_", start);
+    }
+    if (start < size) {
+        parts->addObject(cocos2d::CCString::create(keyStr.substr(start)));
     }
     return parts->count() > 1 ? atoi(static_cast<cocos2d::CCString*>(parts->objectAtIndex(1))->getCString()) : 0;
 }
@@ -512,7 +533,7 @@ int GameLevelManager::likeFromLikeKey(char const* key) {
     std::string keyStr = key;
     auto parts = cocos2d::CCArray::create();
     auto start = 0;
-    auto index = keyStr.find_first_of(",");
+    auto index = keyStr.find_first_of("_");
     auto size = keyStr.size();
     while (index != std::string::npos) {
         auto str = keyStr.substr(start, index - start);
@@ -520,7 +541,10 @@ int GameLevelManager::likeFromLikeKey(char const* key) {
             parts->addObject(cocos2d::CCString::create(str));
         }
         start = index + 1;
-        index = keyStr.find_first_of(",", start);
+        index = keyStr.find_first_of("_", start);
+    }
+    if (start < size) {
+        parts->addObject(cocos2d::CCString::create(keyStr.substr(start)));
     }
     return parts->count() > 4 ? atoi(static_cast<cocos2d::CCString*>(parts->objectAtIndex(3))->getCString()) : 0;
 }
@@ -592,7 +616,7 @@ int GameLevelManager::pageFromCommentKey(char const* key) {
     std::string keyStr = key;
     auto parts = cocos2d::CCArray::create();
     auto start = 0;
-    auto index = keyStr.find_first_of(",");
+    auto index = keyStr.find_first_of("_");
     auto size = keyStr.size();
     while (index != std::string::npos) {
         auto str = keyStr.substr(start, index - start);
@@ -600,7 +624,10 @@ int GameLevelManager::pageFromCommentKey(char const* key) {
             parts->addObject(cocos2d::CCString::create(str));
         }
         start = index + 1;
-        index = keyStr.find_first_of(",", start);
+        index = keyStr.find_first_of("_", start);
+    }
+    if (start < size) {
+        parts->addObject(cocos2d::CCString::create(keyStr.substr(start)));
     }
     return parts->count() > 2 ? atoi(static_cast<cocos2d::CCString*>(parts->objectAtIndex(2))->getCString()) : 0;
 }
@@ -687,14 +714,20 @@ void GameLevelManager::storeDailyLevelState(int id, int remaining, GJTimedLevelT
     if (type == GJTimedLevelType::Daily) {
         m_dailyID = id;
         m_dailyTimeLeft = currentTime + remaining;
+        if (id > m_currentDailyID) m_currentDailyID = id;
+        if (id > m_lastSeenDailyID) m_lastSeenDailyID = id;
     }
     else if (type == GJTimedLevelType::Weekly) {
         m_weeklyID = id;
         m_weeklyTimeLeft = currentTime + remaining;
+        if (id > m_currentWeeklyID) m_currentWeeklyID = id;
+        if (id > m_lastSeenWeeklyID) m_lastSeenWeeklyID = id;
     }
     else if (type == GJTimedLevelType::Event) {
         m_eventID = id;
         m_eventTimeLeft = currentTime + remaining;
+        if (id > m_currentEventID) m_currentEventID = id;
+        if (id > m_lastSeenEventID) m_lastSeenEventID = id;
     }
 }
 
@@ -706,7 +739,7 @@ CommentType GameLevelManager::typeFromCommentKey(char const* key) {
     std::string keyStr = key;
     auto parts = cocos2d::CCArray::create();
     auto start = 0;
-    auto index = keyStr.find_first_of(",");
+    auto index = keyStr.find_first_of("_");
     auto size = keyStr.size();
     while (index != std::string::npos) {
         auto str = keyStr.substr(start, index - start);
@@ -714,7 +747,10 @@ CommentType GameLevelManager::typeFromCommentKey(char const* key) {
             parts->addObject(cocos2d::CCString::create(str));
         }
         start = index + 1;
-        index = keyStr.find_first_of(",", start);
+        index = keyStr.find_first_of("_", start);
+    }
+    if (start < size) {
+        parts->addObject(cocos2d::CCString::create(keyStr.substr(start)));
     }
     return parts->count() > 3 ? (CommentType)atoi(static_cast<cocos2d::CCString*>(parts->objectAtIndex(3))->getCString()) : CommentType::Level;
 }
@@ -723,7 +759,7 @@ LikeItemType GameLevelManager::typeFromLikeKey(char const* key) {
     std::string keyStr = key;
     auto parts = cocos2d::CCArray::create();
     auto start = 0;
-    auto index = keyStr.find_first_of(",");
+    auto index = keyStr.find_first_of("_");
     auto size = keyStr.size();
     while (index != std::string::npos) {
         auto str = keyStr.substr(start, index - start);
@@ -731,13 +767,12 @@ LikeItemType GameLevelManager::typeFromLikeKey(char const* key) {
             parts->addObject(cocos2d::CCString::create(str));
         }
         start = index + 1;
-        index = keyStr.find_first_of(",", start);
+        index = keyStr.find_first_of("_", start);
+    }
+    if (start < size) {
+        parts->addObject(cocos2d::CCString::create(keyStr.substr(start)));
     }
     return parts->count() > 4 ? (LikeItemType)atoi(static_cast<cocos2d::CCString*>(parts->objectAtIndex(1))->getCString()) : LikeItemType::Unknown;
-}
-
-void GameLevelManager::unfollowUser(int id) {
-    m_followedCreators->removeObjectForKey(cocos2d::CCString::createWithFormat("%i", id)->getCString());
 }
 
 bool GameLevelManager::unrateLevelAdmin(int id) {
@@ -786,13 +821,31 @@ void GameLevelManager::verifyLevelState(GJGameLevel* level) {
     }
 }
 
-GameLevelManager* GameLevelManager::sharedState() {
-    auto& ref = *reinterpret_cast<GameLevelManager**>(geode::base::get() + 0x90bfb0);
-    if(!ref) {
-        ref = new GameLevelManager(geode::ZeroConstructor);
-        ref->init();
+bool GameLevelManager::isPastDailyCopy(GJGameLevel* level) {
+    auto dailyID = level->m_dailyID.value();
+    if(dailyID <= 0) return false;
+
+    return dailyID != this->getActiveDailyID( 
+        dailyID > 200000 ? GJTimedLevelType::Event :
+        dailyID > 100000 ? GJTimedLevelType::Weekly :
+        GJTimedLevelType::Daily
+    );
+}
+
+bool GameLevelManager::vaultTimedType(SearchType searchType, GJTimedLevelType& timedType) {
+    switch (searchType) {
+        case SearchType::DailyVault:
+            timedType = GJTimedLevelType::Daily;
+            return true;
+        case SearchType::WeeklyVault:
+            timedType = GJTimedLevelType::Weekly;
+            return true;
+        case SearchType::EventVault:
+            timedType = GJTimedLevelType::Event;
+            return true;
+        default:
+            return false;
     }
-    return ref;
 }
 #endif
 

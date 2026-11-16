@@ -7,6 +7,7 @@
 #include <Geode/binding/LevelListLayer.hpp>
 #include <Geode/binding/SetupSmartTemplateLayer.hpp>
 #include <Geode/binding/ShareCommentLayer.hpp>
+#include <Geode/binding/GJListLayer.hpp>
 
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
@@ -61,21 +62,6 @@ void LevelBrowserLayer::createNewSmartTemplate(cocos2d::CCObject* sender) {
     this->onBack(nullptr);
 }
 
-void LevelBrowserLayer::deleteSelected() {
-    auto selected = cocos2d::CCArray::create();
-    for (auto level : geode::cocos::CCArrayExt<GJGameLevel, false>(m_levels)) {
-        if (level->m_selected) selected->addObject(level);
-    }
-    if (selected->count() == 0) return;
-    auto glm = GameLevelManager::sharedState();
-    for (auto level : geode::cocos::CCArrayExt<GJGameLevel, false>(selected)) {
-        glm->deleteLevel(level);
-    }
-    m_allSelected = false;
-    m_allObjectsToggler->toggle(false);
-    this->loadPage(m_searchObject);
-}
-
 void LevelBrowserLayer::exitLayer(cocos2d::CCObject* sender) {
     cocos2d::CCDirector::sharedDirector()->getTouchDispatcher()->unregisterForcePrio(this);
     this->removeFromParentAndCleanup(true);
@@ -97,6 +83,15 @@ void LevelBrowserLayer::updateLevelsLabel() {
     m_countText->limitLabelWidth(100.f, .6f, .0f);
     this->updatePageLabel();
 }
+
+bool LevelBrowserLayer::isSafeType() {
+    return m_searchObject && (this->isVaultType() || m_searchObject->m_searchType == SearchType::DailySafe || m_searchObject->m_searchType == SearchType::WeeklySafe || m_searchObject->m_searchType == SearchType::EventSafe);
+}
+
+bool LevelBrowserLayer::isVaultType() {
+    GJTimedLevelType unused;
+    return m_searchObject && GameLevelManager::vaultTimedType(m_searchObject->m_searchType, unused);
+}
 #endif
 
 #if defined(GEODE_IS_MACOS) || defined(GEODE_IS_ANDROID)
@@ -117,7 +112,7 @@ LevelBrowserLayer::LevelBrowserLayer() {
     m_pageBtn = nullptr;
     m_folderText = nullptr;
     m_folderBtn = nullptr;
-    m_allObjectsToggler = nullptr;
+    m_selectionStrip = nullptr;
     m_itemCount = 0;
     m_pageStartIdx = 0;
     m_pageEndIdx = 0;

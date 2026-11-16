@@ -4,6 +4,10 @@
 #include <Geode/binding/GJLevelList.hpp>
 #include <Geode/binding/GameToolbox.hpp>
 #include <Geode/binding/LevelTools.hpp>
+#include <Geode/binding/GJRewardObject.hpp>
+#include <Geode/binding/GJRewardItem.hpp>
+#include <Geode/binding/GJStoreItem.hpp>
+#include <cmath>
 
 GameStatsManager* GameStatsManager::get() {
     return GameStatsManager::sharedState();
@@ -80,7 +84,7 @@ ShopType GameStatsManager::shopTypeForItemID(int index) {
 }
 
 bool GameStatsManager::shouldAwardSecretKey() {
-    return m_bonusKey.value() < this->getStat("22") / 500.f;
+    return m_bonusKey.value() < floorf(this->getStat("22") / 500.f);
 }
 
 void GameStatsManager::tempClear() {}
@@ -124,6 +128,8 @@ void GameStatsManager::checkCoinsForLevel(GJGameLevel* level) {
 bool GameStatsManager::claimListReward(GJLevelList* list) {
     if (list->m_diamonds > 0 && list->m_levelsToClaim > 0 && list->completedLevels() >= list->m_levelsToClaim && !this->hasClaimedListReward(list)) {
         m_completedLists->setObject(cocos2d::CCString::createWithFormat("%i", list->m_diamonds), this->getListRewardKey(list));
+        this->incrementStat("13", list->m_diamonds);
+        this->incrementStat("41");
         return true;
     }
     return false;
@@ -195,6 +201,7 @@ void GameStatsManager::createSecretChestItems() {
             auto rewardObjects = rewardItem->m_rewardObjects;
             for (int i = 0; i < rewardObjects->count(); i++) {
                 auto rewardObject = static_cast<GJRewardObject*>(rewardObjects->objectAtIndex(i));
+                if (rewardObject->m_specialRewardItem != SpecialRewardItem::CustomItem) continue;
                 auto rewardKey = this->getItemKey(rewardObject->m_itemID, (int)rewardObject->m_unlockType);
                 m_allTreasureRoomChestItems->setObject(cocos2d::CCString::createWithFormat("%i", rewardItem->m_chestID), rewardKey);
             }
@@ -220,19 +227,6 @@ int GameStatsManager::getBaseCurrency(int stars, bool mainLevel, int levelID) {
             default: return 0;
         }
     }
-}
-
-int GameStatsManager::getBaseCurrencyForLevel(GJGameLevel* level) {
-    auto stars = level->m_stars.value();
-    auto attempts = level->m_attempts.value() - level->m_jumps.value();
-    auto mainlevel = level->m_levelType == GJLevelType::Main;
-    if (!mainlevel) {
-        auto key = this->getCurrencyKey(level);
-        auto dict = stars - level->m_stars.value() > 0 ? m_onlineCurrencyScores : m_mainCurrencyScores;
-        auto cur = dict->valueForKey(key.c_str())->intValue();
-        if (attempts < cur) attempts = cur;
-    }
-    return this->getBaseCurrency(attempts, mainlevel, level->m_levelID.value() - level->m_levelID.value() - static_cast<int>(level->m_levelType));
 }
 
 int GameStatsManager::getBaseDiamonds(int stars) {
@@ -265,7 +259,7 @@ const char* GameStatsManager::getDemonLevelKey(GJGameLevel* level) {
 }
 
 std::string GameStatsManager::getLevelKey(GJGameLevel* level) {
-    return getLevelKey(level->m_levelID, level->m_levelType != GJLevelType::Main, level->m_dailyID > 0, level->m_gauntletLevel, level->m_dailyID > 200000);
+    return getLevelKey(level->m_levelID, level->m_levelType != GJLevelType::Main && level->m_dailyID <= 0, level->m_dailyID > 0, level->m_gauntletLevel, level->m_dailyID > 200000);
 }
 
 std::string GameStatsManager::getListRewardKey(GJLevelList* list) {
@@ -273,7 +267,7 @@ std::string GameStatsManager::getListRewardKey(GJLevelList* list) {
 }
 
 int GameStatsManager::getNextGoldChestID() {
-    for (int i = 6001; i < 6021; i++) {
+    for (int i = 6001; i < 6031; i++) {
         if (!this->isSecretChestUnlocked(i)) return i;
     }
     return 0;
@@ -285,10 +279,6 @@ GJRewardItem* GameStatsManager::getRewardForSpecialChest(std::string key) {
 
 GJRewardItem* GameStatsManager::getRewardItem(GJRewardType type) {
     return static_cast<GJRewardItem*>(m_rewardItems->objectForKey((int)type));
-}
-
-int GameStatsManager::getSecretChestForItem(int id, UnlockType type) {
-    return m_allTreasureRoomChestItems->valueForKey(this->getItemKey(id, (int)type))->intValue();
 }
 
 std::string GameStatsManager::getSecretOnlineRewardKey(int id) {
@@ -387,6 +377,7 @@ int GameStatsManager::starsForMapPack(int id) {
 }
 
 void GameStatsManager::storeChallenge(int position, GJChallengeItem* challenge) {
+    challenge->m_position = position;
     m_activeChallenges->setObject(challenge, cocos2d::CCString::createWithFormat("%i", position)->getCString());
 }
 
@@ -394,10 +385,6 @@ void GameStatsManager::storeChallengeTime(int remaining) {
     __timeb64 current;
     _ftime64_s(&current);
     m_challengeTime = ((current.time & 0xfffff) * 1000 + current.millitm) / 1000.0;
-}
-
-void GameStatsManager::storeEventChest(int eventID, GJRewardItem* item) {
-    if (item) m_eventChest->setObject(item, this->getDailyLevelKey(eventID));
 }
 
 void GameStatsManager::storeOnlineChest(std::string key, GJRewardItem* item) {
@@ -409,6 +396,7 @@ void GameStatsManager::storePendingUserCoin(char const* key) {
 }
 
 void GameStatsManager::storeSecondaryQueuedChallenge(int position, GJChallengeItem* challenge) {
+    challenge->m_position = position;
     m_upcomingChallenges->setObject(challenge, cocos2d::CCString::createWithFormat("%i", position + 100)->getCString());
 }
 
@@ -458,3 +446,17 @@ void GameStatsManager::addSpecialRewardDescription(std::string key, std::string 
 }
 #endif
 
+#if defined(GEODE_IS_WINDOWS)
+int GameStatsManager::dailyRecallPrice(int dailyID) {
+    if (dailyID <= 100000)
+        return 1;
+    if (dailyID <= 200000)
+        return 3;
+
+    return 5;
+}
+
+int GameStatsManager::getAwardedCurrencyForLevel(GJGameLevel* level) {
+    return this->getAwardedCurrencyForLevel(level, level->m_dailyID);
+}
+#endif

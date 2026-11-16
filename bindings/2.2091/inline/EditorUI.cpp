@@ -1,8 +1,10 @@
 #include <Geode/binding/EditorUI.hpp>
+#include <cmath>
 #include <Geode/utils/cocos.hpp>
 #include <Geode/binding/ButtonSprite.hpp>
 #include <Geode/binding/CCCircleWave.hpp>
 #include <Geode/binding/CreateMenuItem.hpp>
+#include <Geode/binding/EditorSFXManager.hpp>
 #include <Geode/binding/GJBaseGameLayer.hpp>
 #include <Geode/binding/GJRotationControl.hpp>
 #include <Geode/binding/GJScaleControl.hpp>
@@ -11,6 +13,8 @@
 #include <Geode/binding/GameToolbox.hpp>
 #include <Geode/binding/LevelEditorLayer.hpp>
 #include <Geode/binding/ObjectToolbox.hpp>
+#include <Geode/binding/ColorSelectLiveOverlay.hpp>
+#include <Geode/binding/HSVLiveOverlay.hpp>
 
 EditorUI* EditorUI::get() {
     auto lel = LevelEditorLayer::get();
@@ -20,7 +24,10 @@ EditorUI* EditorUI::get() {
 
 void EditorUI::zoomGameLayer(bool zoomingIn) {
     auto scale = m_editorLayer->m_objectLayer->getScale();
-    this->updateZoom(std::clamp(zoomingIn ? scale + .1f : scale - .1f, .1f, 4.f));
+    auto zoom = roundf((zoomingIn ? scale + .1f : scale - .1f) / .1f + .001f) * .1f;
+    if (zoom > 10.f) zoom = 10.f;
+    else if (zoom < .1f) zoom = .1f;
+    this->updateZoom(zoom);
 }
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
@@ -42,6 +49,7 @@ void EditorUI::doPasteInPlace(bool withColor) {
     auto& clipboard = GameManager::sharedState()->m_editorClipboard;
     if (clipboard.empty()) return;
     this->pasteObjects(clipboard, withColor, false);
+    m_editorLayer->m_buildStats.noteAction();
     this->updateButtons();
     this->updateObjectInfoLabel();
 }
@@ -68,12 +76,6 @@ CCMenuItemSpriteExtra* EditorUI::getButton(char const* text, int width, cocos2d:
     return button;
 }
 
-CCMenuItemSpriteExtra* EditorUI::getModeBtn(char const* frameName, int tag) {
-    auto button = CCMenuItemSpriteExtra::create(cocos2d::CCSprite::createWithSpriteFrameName(frameName), this, menu_selector(EditorUI::toggleMode));
-    button->setTag(tag);
-    return button;
-}
-
 CCMenuItemSpriteExtra* EditorUI::getSimpleButton(std::string frameName, cocos2d::SEL_MenuHandler selector, cocos2d::CCMenu* menu) {
     auto sprite = cocos2d::CCSprite::createWithSpriteFrameName(frameName.c_str());
     sprite->setScale(std::min(18.f / sprite->getContentSize().width, 18.f / sprite->getContentSize().height));
@@ -83,13 +85,15 @@ CCMenuItemSpriteExtra* EditorUI::getSimpleButton(std::string frameName, cocos2d:
 }
 
 CCMenuItemSpriteExtra* EditorUI::getSpriteButton(char const* spriteFrameName, cocos2d::SEL_MenuHandler selector, cocos2d::CCMenu* menu, float scale) {
-    return this->getSpriteButton(spriteFrameName, selector, menu, scale, 1, {0, 0});
+    return this->getSpriteButton(spriteFrameName, selector, menu, scale, 1, {0, 0}, 0.0f);
 }
 
+#if defined(GEODE_IS_IOS)
 GJTransformState& EditorUI::getTransformState() {
     m_transformControl->saveToState(m_transformState);
     return m_transformState;
 }
+#endif
 
 bool EditorUI::isLiveColorSelectTrigger(GameObject* object) {
     return object && object->m_classType == GameObjectClassType::Effect && (object->m_isColorTrigger || object->m_objectID == 1006);
@@ -99,12 +103,17 @@ bool EditorUI::liveEditColorUsable() {
     return m_selectedObject || m_selectedObjects->count() != 0;
 }
 
+#if defined(GEODE_IS_IOS)
 void EditorUI::onDeleteAll(cocos2d::CCObject* sender) {
     this->deselectAll();
+    m_editorLayer->m_buildStats.m_objectsDeleted += m_editorLayer->m_objectCount.value();
+    m_editorLayer->m_buildStats.noteAction();
     m_editorLayer->removeAllObjects();
 }
+#endif
 
 void EditorUI::onPasteInPlace(cocos2d::CCObject* sender) {
+    EditorSFXManager::sharedState()->playAction(111);
     this->doPasteInPlace(false);
 }
 
@@ -162,13 +171,6 @@ float EditorUI::rotationforCommand(EditCommand command) {
     }
 }
 
-void EditorUI::setupEditMenu() {
-    this->createMoveMenu();
-    this->updateEditMenu();
-}
-
-void EditorUI::setupTransformControl() {}
-
 bool EditorUI::shouldSnap(GameObject* object) {
     return (int)object->getRotation() % 90 == 0;
 }
@@ -184,15 +186,13 @@ void EditorUI::showDeleteConfirmation() {
     )->show();
 }
 
-void EditorUI::tryUpdateTimeMarkers() {}
-
 void EditorUI::updateDeleteMenu() {
     m_deleteMenu->setVisible(m_selectedMode == 1);
     this->updateDeleteButtons();
 }
 
-void EditorUI::updateEditMenu() {
-    m_editButtonBar->setVisible(m_selectedMode == 3);
+void EditorUI::updateViewMenu() {
+    m_viewMenu->setVisible(!m_uiHidden && m_selectedMode == 4);
 }
 
 /*void EditorUI::updateGridNodeSize(int objectID) {
@@ -203,31 +203,11 @@ void EditorUI::updateEditMenu() {
 
 void EditorUI::updateGroupIDBtn2() {
     m_goToBaseBtn->setVisible(m_editorLayer->m_currentLayer >= 0);
-}
-
-void EditorUI::updateSpecialUIElements() {
-    this->updateObjectInfoLabel();
-    this->updateScaleControl();
+    m_layerPlusBtn->setVisible(!(m_editorLayer->m_currentLayer >= 0));
 }
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-EditorUI::~EditorUI() {
-    CC_SAFE_RELEASE(m_selectedObjects);
-    CC_SAFE_RELEASE(m_deleteObjects);
-    CC_SAFE_RELEASE(m_createButtonArray);
-    CC_SAFE_RELEASE(m_customObjectButtonArray);
-    CC_SAFE_RELEASE(m_createButtonBars);
-    CC_SAFE_RELEASE(m_tabsArray);
-    CC_SAFE_RELEASE(m_editButtonDict);
-    CC_SAFE_RELEASE(m_rotationControl);
-    CC_SAFE_RELEASE(m_scaleControl);
-    CC_SAFE_RELEASE(m_transformControl);
-    CC_SAFE_RELEASE(m_snapPositions);
-    CC_SAFE_RELEASE(m_uiItems);
-    CC_SAFE_RELEASE(m_customTabControls);
-}
-
 EditorUI* EditorUI::create(LevelEditorLayer* editorLayer) {
     auto ret = new EditorUI();
     if (ret->init(editorLayer)) {
@@ -280,24 +260,6 @@ void EditorUI::changeSelectedObjects(cocos2d::CCArray* objects, bool ignoreFilte
     m_canActivateControls = true;
     this->updateObjectInfoLabel();
     this->updateScaleControl();
-}
-
-std::string EditorUI::copyObjectsDetailed(cocos2d::CCArray* objects) {
-    qsort(objects->data->arr, objects->data->num, sizeof(GameObject*), [](void const* a, void const* b) {
-        auto objA = *static_cast<GameObject* const*>(a);
-        auto objB = *static_cast<GameObject* const*>(b);
-        return objA->m_uniqueID - objB->m_uniqueID;
-    });
-    auto groupCenter = this->getGroupCenter(objects, false);
-    std::string result = "";
-    for (auto object : geode::cocos::CCArrayExt<GameObject, false>(objects)) {
-        if (object->m_objectID == 749) continue;
-        auto position = object->getPosition();
-        object->setPosition(position - groupCenter);
-        result += object->getSaveString(m_editorLayer) + ";";
-        object->setPosition(position);
-    }
-    return result;
 }
 
 cocos2d::CCArray* EditorUI::createExtras(cocos2d::CCArray* objects) {
@@ -357,12 +319,12 @@ void EditorUI::disableButton(CreateMenuItem* button) {
     if (button->m_objectID < 0) return;
     auto object = static_cast<EffectGameObject*>(sprite->m_subSprite);
     if (object->m_classType == GameObjectClassType::Effect && object->isColorObject() && object->m_shouldPreview) {
-        object->setObjectColor({ 127, 100, 100 });
+        object->setObjectColor({ 100, 100, 127 });
     }
     else {
         object->setObjectColor({ 127, 127, 127 });
     }
-    object->setChildColor({ 127, 100, 100 });
+    object->setChildColor({ 100, 100, 127 });
 }
 
 int EditorUI::edgeForObject(int id, int type) {
@@ -457,19 +419,6 @@ int EditorUI::edgeForObject(int id, int type) {
     return 0;
 }
 
-int EditorUI::editorLayerForArray(cocos2d::CCArray* objects, bool layer2) {
-    if (!objects) return 0;
-    auto previousLayer = -1;
-    auto currentLayer = -1;
-    for (int i = 0; i < objects->count(); i++) {
-        auto obj = static_cast<GameObject*>(objects->objectAtIndex(i));
-        currentLayer = layer2 ? obj->m_editorLayer2 : obj->m_editorLayer;
-        if (previousLayer != -1 && previousLayer != currentLayer) return 0;
-        previousLayer = currentLayer;
-    }
-    return currentLayer != -1 ? currentLayer : 0;
-}
-
 CreateMenuItem* EditorUI::getCreateMenuItemButton(cocos2d::CCSprite* sprite, cocos2d::SEL_MenuHandler selector, cocos2d::CCMenu* menu, float scale, int background, cocos2d::CCPoint offset) {
     const char* backgroundImage;
     switch (background) {
@@ -493,18 +442,11 @@ GameObject* EditorUI::getCycledObject(cocos2d::CCArray* objects, bool dontSkipSe
     GameObject* cycledObject = nullptr;
     for (int i = 0; i < objects->count(); i++) {
         auto obj = static_cast<GameObject*>(objects->objectAtIndex(i));
-        if ((!dontSkipSelected && obj->m_isSelected) || (cycledObject && cycledObject->m_unk460 <= obj->m_unk460 )) break;
+        if ((!dontSkipSelected && obj->m_isSelected) || (cycledObject && cycledObject->m_unk460 >= obj->m_unk460)) continue;
         if (this->canSelectObject(obj)) cycledObject = obj;
     }
     if (cycledObject) cycledObject->m_unk460 = m_cycledObjectIndex;
     return cycledObject;
-}
-
-cocos2d::CCPoint EditorUI::getGridSnappedPos(cocos2d::CCPoint pos) {
-    auto size = m_editorLayer->m_drawGridLayer->m_gridSize;
-    auto xVal = std::floorf(pos.x / size);
-    auto yVal = std::floorf(pos.y / size);
-    return this->getLimitedPosition(ccp((xVal + 0.5) * size, (yVal + 0.5) * size));
 }
 
 void EditorUI::getGroupInfo(GameObject* selectedObject, cocos2d::CCArray* selectedObjects, int& objectID, int& classType, int& objectType) {
@@ -532,9 +474,14 @@ void EditorUI::getGroupInfo(GameObject* selectedObject, cocos2d::CCArray* select
     }
 }
 
-cocos2d::CCPoint EditorUI::getRelativeOffset(GameObject* object) {
+// TODO: uncomment once free-standing offsetForKey is fixed in broma
+/* cocos2d::CCPoint EditorUI::getRelativeOffset(GameObject* object) {
     return GameToolbox::getRelativeOffset(object, this->offsetForKey(object->m_objectID));
 }
+
+cocos2d::CCPoint EditorUI::positionWithoutOffset(GameObject* object) {
+    return object->getPosition() - this->getRelativeOffset(object);
+} */
 
 float EditorUI::getSnapAngle(GameObject* object, cocos2d::CCArray* objects) {
     if (objects && objects->count() > 0) {
@@ -552,14 +499,17 @@ cocos2d::CCPoint EditorUI::getTouchPoint(cocos2d::CCTouch* touch, cocos2d::CCEve
     return this->convertToWorldSpace(cocos2d::CCDirector::sharedDirector()->convertToGL(touch->getLocationInView()));
 }
 
-void EditorUI::onToggleGuide(EffectGameObject* object) {
+// TODO: 2.209
+/* void EditorUI::onToggleGuide(EffectGameObject* object) {
     object->m_shouldPreview = !object->m_shouldPreview;
     if (m_editorLayer->tryUpdateSpeedObject(object, false)) m_speedObjectsUpdated = true;
     this->tryUpdateTimeMarkers();
-}
+} */
 
 void EditorUI::onToggleSelectedOrder(EffectGameObject* object) {
     auto playbackObject = m_editorLayer->m_playbackObject;
+    if (playbackObject && playbackObject->m_uniqueID == object->m_uniqueID) object = nullptr;
+    m_editorLayer->m_playbackObject = object;
 }
 
 bool EditorUI::positionIsInSnapped(cocos2d::CCPoint position) {
@@ -570,42 +520,11 @@ bool EditorUI::positionIsInSnapped(cocos2d::CCPoint position) {
     return false;
 }
 
-cocos2d::CCPoint EditorUI::positionWithoutOffset(GameObject* object) {
-    return object->getPosition() - this->getRelativeOffset(object);
-}
-
-void EditorUI::resetObjectEditorValues(cocos2d::CCArray* objects) {
-    if (!objects) return;
-    for (int i = 0; i < objects->count(); i++) {
-        auto obj = static_cast<GameObject*>(objects->objectAtIndex(i));
-        obj->updateStartPos();
-        m_objectEditorStates[obj->m_uniqueID].loadValues(obj);
-    }
-}
-
-void EditorUI::selectAll() {
-    auto objects = m_editorLayer->m_objects;
-    auto selected = cocos2d::CCArray::create();
-    for (int i = 0; i < objects->count(); i++) {
-        auto obj = static_cast<GameObject*>(objects->objectAtIndex(i));
-        if (m_editorLayer->validGroup(obj, false)) {
-            selected->addObject(obj);
-        }
-    }
-}
-
 void EditorUI::selectObjectsInRect(cocos2d::CCRect rect) {
     auto objects = m_editorLayer->objectsInRect(rect, false);
     if (objects->count() > 0) {
-        for (int i = 0; i < objects->count(); i++) {
-            auto obj = static_cast<GameObject*>(objects->objectAtIndex(i));
-            if ((m_selectedObject && m_selectedObject->m_uniqueID != obj->m_uniqueID) || !m_selectedObjects->containsObject(obj)) {
-                this->createUndoSelectObject(false);
-                break;
-            }
-        }
-        this->selectObjects(objects, false);
-        this->updateSpecialUIElements();
+        EditorSFXManager::sharedState()->playAction(122);
+        this->processSelectObjects(objects);
     }
 }
 
@@ -622,6 +541,8 @@ void EditorUI::showLiveColorSelectForModeSpecial(int colorID) {
 }
 
 void EditorUI::showMaxCoinError() {
+    if (m_alertShown) return;
+    m_alertShown = true;
     auto alert = FLAlertLayer::create(
         this,
         "Max Coins",
@@ -679,6 +600,11 @@ void EditorUI::transformObjectsReset() {
     if (selectedObjects) this->transformObjects(selectedObjects, m_pivotPoint, 1.f, 1.f, 0.f, 0.f, m_transformState.m_skewX, m_transformState.m_skewY);
 }
 
+void EditorUI::updateSelectionUI() {
+    this->updateButtons();
+    this->updateSpecialUIElements();
+}
+
 void EditorUI::updateStickyControls() {
     auto gameManager = GameManager::sharedState();
     m_stickyControlsEnabled = gameManager->getGameVariable(GameVar::LinkControls);
@@ -704,6 +630,11 @@ float EditorUI::xPosFromValue(float value) {
     auto scale = m_editorLayer->m_objectLayer->getScale();
     return sectionCount * 100.f * scale * value - xMin;
 }
+
+void EditorUI::setupEditMenu() {
+    this->createMoveMenu();
+    this->updateEditMenu();
+}
 #endif
 
 #if defined(GEODE_IS_IOS) || defined(GEODE_IS_MACOS) || defined(GEODE_IS_ANDROID)
@@ -711,6 +642,21 @@ EditorUI* EditorUI::getUI() { return this; }
 #endif
 
 #if defined(GEODE_IS_IOS)
+void EditorUI::updateSpecialUIElements() {
+    if (!m_selectedObject && m_selectedObjects->count() == 0) {
+        this->deactivateRotationControl();
+        this->deactivateScaleControl();
+        this->deactivateTransformControl();
+    }
+    this->updateObjectInfoLabel();
+    this->updateScaleControl();
+}
+
+/*void EditorUI::updateEditMenu() {
+    bool visible = !m_uiHidden && m_selectedMode == 3;
+    if (m_dpadMoveNode) m_dpadMoveNode->setVisible(visible);
+    if (m_editButtonBar) m_editButtonBar->setVisible(false);
+}*/
 
 void EditorUI::closeLiveColorSelect() {
     if (m_colorOverlay) {

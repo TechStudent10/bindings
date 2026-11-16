@@ -79,6 +79,10 @@ inline bool is_cocos_or_fmod_class(std::string const& str) {
     return is_cocos_class(str) || is_fmod_class(str);
 }
 
+inline bool is_kazmath_func(std::string const& str) {
+    return str.starts_with("km");
+}
+
 enum class BindStatus {
     Binded,
     Inlined,
@@ -213,6 +217,20 @@ namespace codegen {
             return platformNumberWithPlatform(codegen::platform, fn->binds);
         }
         return 0;
+    }
+
+    inline std::vector<std::string> getSuperclassesWithPlatform(Platform p, Class const& c) {
+        std::vector<std::string> ret;
+        for (auto& s : c.superclasses) {
+            if ((s.platform & p) == p) {
+                ret.push_back(s.name);
+            }
+        }
+        return ret;
+    }
+
+    inline std::vector<std::string> getSuperclasses(Class const& c) {
+        return getSuperclassesWithPlatform(codegen::platform, c);
     }
 
     inline BindStatus getStatusWithPlatform(Platform p, FunctionBindField const& fn) {

@@ -1,12 +1,14 @@
 #include <Geode/binding/MessagesProfilePage.hpp>
 
+bool MessagesProfilePage::ownsTouchPrio() { return true; }
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
 void MessagesProfilePage::updateLevelsLabel() {
     auto end = m_pageEndIdx + m_pageStartIdx;
     auto count = m_itemCount;
-    if (end > count) end = count;
+    if (end >= count) end = count;
     m_levelsLabel->setString(cocos2d::CCString::createWithFormat("%i to %i of %i", m_pageStartIdx + 1, end, count)->getCString());
+    this->updateSelectUI();
 }
 
 void MessagesProfilePage::updatePageArrows() {

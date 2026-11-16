@@ -33,8 +33,6 @@ void GJTransformControl::finishTouch() {
     }
 }
 
-void GJTransformControl::logCurrentZeroPos() {}
-
 cocos2d::CCSprite* GJTransformControl::spriteByTag(int tag) {
     return static_cast<cocos2d::CCSprite*>(m_warpSprites->objectAtIndex(tag - 1));
 }
@@ -61,25 +59,6 @@ GJTransformControl::~GJTransformControl() {
     CC_SAFE_RELEASE(m_objects);
 }
 
-GJTransformControl* GJTransformControl::create() {
-    auto ret = new GJTransformControl();
-    if (ret->init()) {
-        ret->autorelease();
-        return ret;
-    }
-    delete ret;
-    return nullptr;
-}
-
-void GJTransformControl::applyRotation(float rotation) {
-    if (m_rotationY != rotation) {
-        m_rotationY = rotation;
-        m_mainNode->setRotation(rotation);
-        if (m_delegate) m_delegate->transformRotationChanged(rotation);
-    }
-    this->updateButtons(false, false);
-}
-
 void GJTransformControl::loadFromState(GJTransformState& state) {
     m_rotationX = state.m_transformRotationX;
     m_rotationY = state.m_transformRotationY;
@@ -90,21 +69,6 @@ void GJTransformControl::loadFromState(GJTransformState& state) {
     this->spriteByTag(1)->setPosition({ 0.f, 0.f });
     this->spriteByTag(10)->setPosition(state.m_transformSkewX);
     this->spriteByTag(11)->setPosition(state.m_transformSkewY);
-}
-
-void GJTransformControl::loadValues(GameObject* object, cocos2d::CCArray* objects, std::unordered_map<int, GameObjectEditorState>& states) {
-    if (object && !objects || objects->count() == 0) objects = cocos2d::CCArray::createWithObject(object);
-    CC_SAFE_RELEASE(m_objects);
-    m_objects = objects;
-    objects->retain();
-    if (objects->count() != 0) {
-        for (int i = 0; i < objects->count(); i++) {
-            auto obj = static_cast<GameObject*>(objects->objectAtIndex(i));
-            obj->updateStartPos();
-            states[obj->m_uniqueID].loadValues(obj);
-        }
-    }
-    this->updateButtons(true, false);
 }
 
 void GJTransformControl::saveToState(GJTransformState& state) {
@@ -118,7 +82,7 @@ void GJTransformControl::saveToState(GJTransformState& state) {
 }
 
 void GJTransformControl::updateAnchorSprite(cocos2d::CCPoint position) {
-    this->spriteByTag(0)->setPosition(position);
+    this->spriteByTag(1)->setPosition(position);
     if (m_delegate) m_delegate->updateTransformControl();
 }
 #endif

@@ -28,30 +28,18 @@ const char* ParentalOptionsLayer::pageKey(int page) {
 ParentalOptionsLayer::~ParentalOptionsLayer() {
     CC_SAFE_RELEASE(m_variables);
     CC_SAFE_RELEASE(m_values);
-}
-
-void ParentalOptionsLayer::incrementCountForPage(int page) {
-    m_values->setObject(cocos2d::CCString::createWithFormat("%i", this->countForPage(page) + 1), this->pageKey(page));
+    CC_SAFE_RELEASE(m_safeModeNodes);
+    CC_SAFE_RELEASE(m_toggleNodes);
 }
 
 cocos2d::CCPoint ParentalOptionsLayer::nextPosition(int page) {
     auto winSize = cocos2d::CCDirector::sharedDirector()->getWinSize();
     auto count = this->countForPage(page);
-    cocos2d::CCPoint pos = winSize * .5f + cocos2d::CCPoint { count % 2 == 0 ? -135.f : 35.f, 60.f };
+    cocos2d::CCPoint pos = winSize * .5f + cocos2d::CCPoint { count % 2 == 0 ? -135.f : 35.f, 50.f };
     if (count > 1) pos.y -= (int)(count * .5f) * 48;
     return pos;
 }
 
-void ParentalOptionsLayer::onInfo(cocos2d::CCObject* sender) {
-    FLAlertLayer::create(
-        nullptr,
-        "Info",
-        m_values->valueForKey(this->infoKey(sender->getTag()))->getCString(),
-        "OK",
-        nullptr,
-        300.f
-    )->show();
-}
 #endif
 
 #if defined(GEODE_IS_IOS)

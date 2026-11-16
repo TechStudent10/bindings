@@ -1,4 +1,5 @@
 #include <Geode/binding/CCTextInputNode.hpp>
+#include <Geode/utils/general.hpp>
 
 CCTextInputNode::CCTextInputNode() {
     m_numberInput = false;
@@ -80,24 +81,53 @@ void CCTextInputNode::updateBlinkLabel() {
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-CCTextInputNode::~CCTextInputNode() {
-    if (m_selected) CCTextInputNode::onClickTrackNode(false);
+void CCTextInputNode::disarmHold() {
+    m_holdTimerFired = false;
+    if (m_holdTimerArmed) {
+        m_holdTimerArmed = false;
+        this->unschedule(schedule_selector(CCTextInputNode::holdTimerFired));
+    }
 }
 
-void CCTextInputNode::ccTouchMoved(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {}
+void CCTextInputNode::closeEditMenu() {
+    if (auto editMenu = m_editMenu) {
+        m_editMenu = nullptr;
+        editMenu->removeFromParentAndCleanup(true);
+        editMenu->release();
+    }
+}
 
-void CCTextInputNode::ccTouchEnded(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {}
+void CCTextInputNode::copyText() {
+    if (this->canCopyText()) {
+        std::string str = this->getString();
+        geode::utils::clipboard::write(str);
+    }
+}
+#endif
 
-void CCTextInputNode::ccTouchCancelled(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {}
+#if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_ANDROID32) || defined(GEODE_IS_ANDROID64)
+CCTextInputNode::~CCTextInputNode() {
+    this->disarmHold();
+    this->closeEditMenu();
+    if (m_selected) CCTextInputNode::onClickTrackNode(false);
+    static_assert(GEODE_COMP_GD_VERSION == 22091, "Inline definition with static addresses not updated");
 
-void CCTextInputNode::forceOffset() {}
+    #if defined(GEODE_IS_WINDOWS)
+    auto activeInput = reinterpret_cast<CCTextInputNode**>(geode::base::get() + 0x909788);
+    #elif defined(GEODE_IS_ANDROID32)
+    auto activeInput = reinterpret_cast<CCTextInputNode**>(geode::base::get() + 0xd2b390);
+    #elif defined(GEODE_IS_ANDROID64)
+    auto activeInput = reinterpret_cast<CCTextInputNode**>(geode::base::get() + 0x155c120);
+    #endif
+    if (*activeInput == this) *activeInput = nullptr;
+}
+#endif
+
+#if defined(GEODE_IS_WINDOWS)
+void CCTextInputNode::forceOffset() { m_forceOffset = true; }
 
 std::string CCTextInputNode::getString() {
     return m_textField->getString();
-}
-
-void CCTextInputNode::setAllowedChars(std::string filter) {
-    m_allowedChars = filter;
 }
 
 void CCTextInputNode::setLabelPlaceholderColor(cocos2d::ccColor3B color) {

@@ -28,6 +28,7 @@ void Slider::disableSlider() {
     if (!m_enabled) return;
     m_enabled = false;
     m_touchLogic->setTouchEnabled(false);
+    this->setValue(0.f);
     m_sliderBar->setColor({ 150, 150, 150 });
     m_groove->setColor({ 150, 150, 150 });
     if (auto normalImage = static_cast<cocos2d::CCSprite*>(m_touchLogic->m_thumb->getNormalImage())) {
@@ -68,11 +69,6 @@ void Slider::hideGroove(bool visibility) {
 
 void Slider::setBarVisibility(bool visibility) {
     m_sliderBar->setVisible(visibility);
-}
-
-void Slider::setValue(float val) {
-    this->getThumb()->setValue(val);
-    this->updateBar();
 }
 #endif
 

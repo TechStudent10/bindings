@@ -10,19 +10,10 @@ ScrollingLayer::ScrollingLayer() {
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-ScrollingLayer* ScrollingLayer::create(cocos2d::CCSize size, cocos2d::CCPoint position, float factor) {
-    auto ret = new ScrollingLayer();
-    if (ret->init(size, position, factor)) {
-        ret->autorelease();
-        return ret;
-    }
-    delete ret;
-    return nullptr;
-}
-
 bool ScrollingLayer::init(cocos2d::CCSize size, cocos2d::CCPoint position, float factor) {
     if (!cocos2d::CCLayerColor::initWithColor({ 0, 0, 0, 0 })) return false;
     m_scrollFactor = factor;
+    m_position = position;
     this->addChild(cocos2d::CCLayerColor::create({ 0, 0, 0, 50 }), -2);
     m_contentLayer = cocos2d::CCLayer::create();
     this->addChild(m_contentLayer, -1);

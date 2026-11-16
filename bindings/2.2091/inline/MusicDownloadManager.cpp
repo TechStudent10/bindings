@@ -6,11 +6,23 @@
 #include <Geode/binding/SFXFolderObject.hpp>
 #include <Geode/binding/SFXInfoObject.hpp>
 #include <Geode/binding/SongInfoObject.hpp>
+#include <Geode/binding/MusicArtistObject.hpp>
 #include <Geode/cocos/actions/CCActionManager.h>
 #include <Geode/cocos/robtop/xml/DS_Dictionary.h>
 #include <Geode/mapping/CCHttpRequest.hpp>
 #include <Geode/mapping/CCHttpResponse.hpp>
 #include <Geode/mapping/CCObject.hpp>
+#include <Geode/mapping/CCString.hpp>
+#include <Geode/mapping/CCDictionary.hpp>
+#include <Geode/mapping/CCSequence.hpp>
+#include <Geode/mapping/CCDelayTime.hpp>
+#include <Geode/mapping/CCCallFuncND.hpp>
+
+#ifndef GEODE_IS_WINDOWS
+std::string MusicDownloadManager::pathForNewsImage(std::string imageKey) {
+    return pathForNewsFolder().append(imageKey);
+}
+#endif
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
 void MusicDownloadManager::addDLToActive(char const* tag) {
@@ -102,12 +114,6 @@ void MusicDownloadManager::downloadSongFinished(int id) {
     for (int i = 0; i < m_musicDownloadDelegates->count(); i++) {
         static_cast<MusicDelegateHandler*>(m_musicDownloadDelegates->objectAtIndex(i))->m_delegate->downloadSongFinished(id);
     }
-}
-
-void MusicDownloadManager::encodeDataTo(DS_Dictionary* dict) {
-    dict->setDictForKey("MDLM_001", m_songObjects);
-    dict->setDictForKey("MDLM_003", m_MDLM003);
-    dict->setIntegerForKey("MDLM_002", m_songPriority);
 }
 
 void MusicDownloadManager::firstSetup() {
@@ -238,16 +244,6 @@ int MusicDownloadManager::getSFXDownloadProgress(int id) {
         return dlObject->getDownloadProgress();
     }
     return -1;
-}
-
-SFXFolderObject* MusicDownloadManager::getSFXFolderObjectForID(int id) {
-    if (auto sfxObject = sharedState()->getSFXObject(id)) {
-        if (sfxObject->m_folder) return static_cast<SFXFolderObject*>(sfxObject);
-        if (auto folderObject = static_cast<SFXFolderObject*>(sharedState()->getSFXObject(sfxObject->m_folderID))) {
-            if (folderObject->m_folder) return folderObject;
-        }
-    }
-    return nullptr;
 }
 
 SFXInfoObject* MusicDownloadManager::getSFXObject(int id) {

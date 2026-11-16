@@ -11,6 +11,7 @@
 #include <Geode/binding/GameObject.hpp>
 #include <Geode/binding/LabelGameObject.hpp>
 #include <Geode/binding/PlayerObject.hpp>
+#include <Geode/binding/GameStatsManager.hpp>
 
 PlayLayer* PlayLayer::get() {
     return GameManager::get()->m_playLayer;
@@ -68,8 +69,6 @@ float PlayLayer::getRelativeModNew(cocos2d::CCPoint position, float mod, float o
     return cocos2d::clampf(result / mod, 0.f, 1.f);
 }
 
-void PlayLayer::playReplay(std::string inputs) {}
-
 void PlayLayer::removeFromGroupOld(GameObject* object) {
     for (int i = 0; i < object->m_groupCount; i++) {
         this->getGroup(object->getGroupID(i))->removeObject(object);
@@ -85,6 +84,7 @@ void PlayLayer::startRecording() {
 }
 
 void PlayLayer::startRecordingDelayed() {
+    this->stopActionByTag(31);
     auto action = cocos2d::CCSequence::create(
         cocos2d::CCDelayTime::create(2.f),
         cocos2d::CCCallFunc::create(this, callfunc_selector(PlayLayer::startRecording)),
@@ -151,6 +151,10 @@ double PlayLayer::getTempMilliTime() {
     __timeb64 current;
     _ftime64_s(&current);
     return ((current.time & 0xfffff) * 1000 + current.millitm) / 1000.0;
+}
+
+bool PlayLayer::tracksPercent() {
+    return m_isPlatformer ? m_tracksPresent : true;
 }
 #endif
 
@@ -284,9 +288,9 @@ void PlayLayer::toggleIgnoreDamage(bool value) {
 void PlayLayer::updateEffectPositions() {
     auto winSize = cocos2d::CCDirector::sharedDirector()->getWinSize();
     m_glitterParticles->setPosition(winSize * .5f / m_gameState.m_cameraZoom + m_gameState.m_cameraPosition);
-    for (int i = 0; i < m_circleWaveArray->count(); i++) {
+    for (unsigned int i = 0; i < m_circleWaveArray->count(); i++) {
         auto wave = static_cast<CCCircleWave*>(m_circleWaveArray->objectAtIndex(i));
-        if (wave->m_target) wave->setPosition(wave->m_target->getPosition());
+        wave->updatePosition(0.f);
     }
 }
 #endif
@@ -348,7 +352,7 @@ void PlayLayer::updateInvisibleBlock(GameObject* object, float rightFadeBound, f
         factor = realPosition.x - cameraX - rightFadeBound;
     }
     else {
-        factor = factor + leftFadeBound - realPosition.x;
+        factor = cameraX + leftFadeBound - realPosition.x;
         rightFadeWidth = leftFadeWidth;
     }
     rightFadeWidth = std::max(rightFadeWidth, 1.f);

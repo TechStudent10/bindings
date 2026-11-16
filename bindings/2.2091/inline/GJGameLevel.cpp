@@ -1,8 +1,5 @@
 #include <Geode/binding/GJGameLevel.hpp>
-
-void GJGameLevel::setAccountID(int id) {
-    m_accountID = id;
-}
+#include <Geode/binding/LevelTools.hpp>
 
 void GJGameLevel::setAttempts(int attempts) {
     m_attempts = attempts;
@@ -14,6 +11,24 @@ void GJGameLevel::setAttemptTime(int time) {
 
 void GJGameLevel::setClicks(int clicks) {
     m_clicks = clicks;
+}
+
+void GJGameLevel::setJumps(int jumps) {
+    m_jumps = jumps;
+}
+
+void GJGameLevel::setNewNormalPercent(int percent) {
+    m_orbCompletion = percent;
+}
+
+void GJGameLevel::setNewNormalPercent2(int percent) {
+    m_newNormalPercent2 = percent;
+}
+
+#ifndef GEODE_IS_WINDOWS
+
+void GJGameLevel::setAccountID(int id) {
+    m_accountID = id;
 }
 
 void GJGameLevel::setCoinsVerified(int coinsVerified) {
@@ -28,20 +43,8 @@ void GJGameLevel::setDemon(int demon) {
     m_demon = demon;
 }
 
-void GJGameLevel::setJumps(int jumps) {
-    m_jumps = jumps;
-}
-
 void GJGameLevel::setLevelID(int levelID) {
     m_levelID = levelID;
-}
-
-void GJGameLevel::setNewNormalPercent(int percent) {
-    m_orbCompletion = percent;
-}
-
-void GJGameLevel::setNewNormalPercent2(int percent) {
-    m_newNormalPercent2 = percent;
 }
 
 void GJGameLevel::setObjectCount(int count) {
@@ -59,8 +62,22 @@ void GJGameLevel::setPassword(int password) {
 void GJGameLevel::setStars(int stars) {
     m_stars = stars;
 }
+#endif
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
+
+int GJGameLevel::getAverageDifficulty() {
+    if (m_ratings <= 4) return 0;
+    return round(m_ratingsSum / m_ratings);
+}
+
+std::string GJGameLevel::getUnpackedLevelDescription() {
+    if (m_levelDesc.empty()) {
+        return "";
+    }
+    return LevelTools::base64DecodeString(m_levelDesc);
+}
+
 std::string GJGameLevel::generateSettingsString() { return ""; }
 
 void GJGameLevel::levelWasSubmitted() {
@@ -79,10 +96,6 @@ bool GJGameLevel::shouldCheatReset() {
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-GJGameLevel::~GJGameLevel() {
-    CC_SAFE_RELEASE(m_lastBuildSave);
-}
-
 GJGameLevel* GJGameLevel::create() {
 	auto ret = new GJGameLevel();
     if (ret->init()) {
@@ -129,11 +142,26 @@ bool GJGameLevel::isPlatformer() {
 }
 
 void GJGameLevel::levelWasAltered() {
-    m_hasBeenModified = true;
     m_isVerifiedRaw = false;
+    m_hasBeenModified = true;
     m_isVerified = false;
     this->unverifyCoins();
     m_capacityString = "";
+    m_bestTime = 0;
+    m_bestPoints = 0;
+    m_savedTime = false;
+    m_savedPoints = false;
+    this->clearPlatformerSave();
+    if (m_levelType == GJLevelType::Editor) {
+        this->setNormalPercent(0);
+        m_practicePercent = 0;
+        this->setNewNormalPercent(0);
+        this->setNewNormalPercent2(0);
+        this->setClicks(0);
+        this->setAttemptTime(0);
+        m_personalBests = "";
+        m_chk = 0;
+    }
     if (m_isUploaded) {
         m_isUploaded = false;
         m_levelVersion++;

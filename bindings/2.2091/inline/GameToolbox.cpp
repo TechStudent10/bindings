@@ -1,4 +1,7 @@
 #include <Geode/binding/GameToolbox.hpp>
+#include <Geode/binding/FLAlertLayer.hpp>
+#include <Geode/binding/PlatformToolbox.hpp>
+#include <cstdio>
 
 #include <Geode/mapping/CCEaseExponentialIn.hpp>
 #include <Geode/utils/cocos.hpp>
@@ -131,44 +134,44 @@ bool GameToolbox::isIOS() {
     #endif
 }
 
-// TODO: 2.209
-bool GameToolbox::saveStringToFile(std::string const& path, std::string const& content, bool p0, bool p1) {
+bool GameToolbox::saveStringToFile(std::string const& path, std::string const& content, bool absolute, bool atomic) {
+    auto fullPath = absolute ? path : cocos2d::CCFileUtils::sharedFileUtils()->getWritablePath() + path;
+    auto writePath = atomic ? fullPath + ".tmp" : fullPath;
+
     #ifdef GEODE_IS_WINDOWS
     FILE* file = nullptr;
-    fopen_s(&file, (cocos2d::CCFileUtils::sharedFileUtils()->getWritablePath() + path).c_str(), "w");
+    fopen_s(&file, writePath.c_str(), "w");
     #else
-    auto file = fopen((cocos2d::CCFileUtils::sharedFileUtils()->getWritablePath() + path).c_str(), "w");
+    auto file = fopen(writePath.c_str(), "w");
     #endif
-    if (!file) return false;
+
+    if (!file) {
+        if (atomic) std::remove(writePath.c_str());
+        return false;
+    }
+
     auto result = fwrite(content.c_str(), 1, content.size(), file);
-    fclose(file);
-    return result == content.size();
+    auto closed = fclose(file);
+
+    if (result != content.size() || closed != 0) {
+        if (atomic) std::remove(writePath.c_str());
+        return false;
+    }
+
+    if (atomic && std::rename(writePath.c_str(), fullPath.c_str()) != 0) {
+        std::remove(writePath.c_str());
+        return false;
+    }
+
+    return true;
 }
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-void GameToolbox::alignItemsVertically(cocos2d::CCArray* items, float gap, cocos2d::CCPoint position) {
-    auto y = -gap;
-    for (auto node : geode::cocos::CCArrayExt<cocos2d::CCNode, false>(items)) {
-        y += node->getScaleY() * node->getContentSize().height + gap;
-    }
-
-    y = -y / 2.f;
-    for (auto node : geode::cocos::CCArrayExt<cocos2d::CCNode, false>(items)) {
-        auto size = node->getContentSize();
-        auto scale = node->getScaleY();
-        node->setPosition({ 0.f, scale * size.height / 2.f + y });
-        node->setPosition(node->getPosition() + position);
-        y += scale * size.height + gap;
-    }
-}
-
-CCMenuItemToggler* GameToolbox::createToggleButton(std::string label, cocos2d::SEL_MenuHandler selector, bool state, cocos2d::CCMenu* menu, cocos2d::CCPoint position, cocos2d::CCNode* parent, cocos2d::CCNode* labelParent, cocos2d::CCArray* container) {
-    return GameToolbox::createToggleButton(label, selector, state, menu, position, parent, labelParent, .7f, .5f, 80.f, { 8.f, 0.f }, "bigFont.fnt", false, 0, container);
-}
-
 bool GameToolbox::doWeHaveInternet() {
-    return true;
+    if (PlatformToolbox::isNetworkAvailable()) return true;
+    FLAlertLayer::create(nullptr, "Error", "No Internet Connection.", "OK", nullptr)->show();
+    return false;
 }
 
 float GameToolbox::fast_rand_0_1() {

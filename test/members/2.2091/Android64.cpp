@@ -542,7 +542,7 @@ GEODE_SIZE_CHECK(ItemTriggerGameObject, 0x768);
 GEODE_SIZE_CHECK(KeybindCapturePopup, 0x478);
 GEODE_SIZE_CHECK(KeybindingsLayer, 0x4a8);
 GEODE_SIZE_CHECK(KeybindingsSettingsPopup, 0x2e8);
-GEODE_SIZE_CHECK(KeybindSet, 0x8);
+GEODE_SIZE_CHECK(KeybindSet, 0x28);
 GEODE_SIZE_CHECK(KeybindSource, 0x8);
 GEODE_SIZE_CHECK(KeyframeAnimTriggerObject, 0x748);
 GEODE_SIZE_CHECK(KeyframeGameObject, 0x768);
@@ -619,7 +619,10 @@ GEODE_SIZE_CHECK(MusicDelegateHandler, 0x148);
 GEODE_SIZE_CHECK(MusicDownloadDelegate, 0x8);
 GEODE_SIZE_CHECK(MusicDownloadManager, 0x370);
 GEODE_SIZE_CHECK(MusicSearchResult, 0xa8);
+
 GEODE_SIZE_CHECK(MyStuffPopup, 0x2a0);
+GEODE_MEMBER_CHECK(MyStuffPopup, m_score, 0x298);
+
 GEODE_SIZE_CHECK(NCSInfoLayer, 0x2a8);
 GEODE_SIZE_CHECK(NewgroundsInfoLayer, 0x298);
 GEODE_SIZE_CHECK(NewsPopup, 0x348);

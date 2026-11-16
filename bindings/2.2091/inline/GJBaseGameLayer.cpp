@@ -23,6 +23,9 @@
 #include <Geode/binding/StartPosObject.hpp>
 #include <Geode/binding/TeleportPortalObject.hpp>
 #include <Geode/binding/GJGradientLayer.hpp>
+#include <Geode/binding/EnterEffectObject.hpp>
+#include <Geode/binding/EnhancedTriggerObject.hpp>
+#include <Geode/binding/FMODAudioEngine.hpp>
 
 GJBaseGameLayer* GJBaseGameLayer::get() {
     return GameManager::get()->m_gameLayer;
@@ -117,6 +120,7 @@ int GJBaseGameLayer::atlasValue(int atlas) {
 }
 
 int GJBaseGameLayer::buttonIDToButton(int id) {
+    if (id == 98 || id == 99) return id;
     switch (id) {
         case 2: case 7: return 2;
         case 3: case 8: return 3;
@@ -184,7 +188,7 @@ float GJBaseGameLayer::getScaledGroundHeight(float height) {
 }
 
 int GJBaseGameLayer::getSpecialKey(int groupID, bool ignoreGroupParent, bool ignoreLinkedObjects) {
-    return groupID + (int)ignoreGroupParent * 1000000 + (int)ignoreLinkedObjects * 10000000 + 10000000;
+    return groupID + (int)ignoreGroupParent * 10000000 + (int)ignoreLinkedObjects * 1000000 + 100000000;
 }
 
 cocos2d::CCArray* GJBaseGameLayer::getTargetGroup(int index, int uniqueID) {
@@ -206,13 +210,13 @@ void GJBaseGameLayer::moveCameraToPos(cocos2d::CCPoint pos) {
 
 double GJBaseGameLayer::performMathOperation(double operand1, double operand2, int operation) {
     switch (operation) {
-        case 0:
-            return operand1 + operand2;
         case 1:
-            return operand1 - operand2;
+            return operand1 + operand2;
         case 2:
-            return operand1 * operand2;
+            return operand1 - operand2;
         case 3:
+            return operand1 * operand2;
+        case 4:
             return operand2 != 0.0 ? operand1 / operand2 : 0.0;
         default:
             return 0.0;
@@ -226,10 +230,6 @@ double GJBaseGameLayer::performMathRounding(double value, int type) {
         case 3: return ceil(value);
         default: return value;
     }
-}
-
-void GJBaseGameLayer::pickupItem(EffectGameObject* object) {
-    m_collectedItems->setObject(object, fmt::format("{}", object->m_uniqueID));
 }
 
 void GJBaseGameLayer::playerTouchedObject(PlayerObject* player, GameObject* object) {
@@ -311,28 +311,28 @@ GameObject* GJBaseGameLayer::tryGetGroupParent(int groupID) {
 }
 
 void GJBaseGameLayer::unlinkAllEvents() {
-    m_gameState.m_unkMapPairGJGameEventIntVectorEventTriggerInstance.clear();
+    m_gameState.m_gameEventTriggers.clear();
 }
 
 void GJBaseGameLayer::updateInternalCamOffsetX(float offsetX, float duration, float easingRate) {
-    m_gameState.m_unkPoint27.x = offsetX;
+    m_gameState.m_internalCameraOffsetTarget.x = offsetX;
     if (duration > 0.f) {
-        m_gameState.tweenValue(m_gameState.m_unkPoint26.x, offsetX, 18, duration, 1, easingRate, -1, -1);
+        m_gameState.tweenValue(m_gameState.m_internalCameraOffset.x, offsetX, 18, duration, 1, easingRate, -1, -1);
     }
     else {
         m_gameState.stopTweenAction(18);
-        m_gameState.m_unkPoint26.x = m_gameState.m_unkPoint27.x;
+        m_gameState.m_internalCameraOffset.x = m_gameState.m_internalCameraOffsetTarget.x;
     }
 }
 
 void GJBaseGameLayer::updateInternalCamOffsetY(float offsetY, float duration, float easingRate) {
-    m_gameState.m_unkPoint27.y = offsetY;
+    m_gameState.m_internalCameraOffsetTarget.y = offsetY;
     if (duration > 0.f) {
-        m_gameState.tweenValue(m_gameState.m_unkPoint26.y, offsetY, 19, duration, 1, easingRate, -1, -1);
+        m_gameState.tweenValue(m_gameState.m_internalCameraOffset.y, offsetY, 19, duration, 1, easingRate, -1, -1);
     }
     else {
-        m_gameState.stopTweenAction(10);
-        m_gameState.m_unkPoint26.y = m_gameState.m_unkPoint27.y;
+        m_gameState.stopTweenAction(19);
+        m_gameState.m_internalCameraOffset.y = m_gameState.m_internalCameraOffsetTarget.y;
     }
 }
 
@@ -403,21 +403,6 @@ void GJBaseGameLayer::addPoints(int points) {
     m_gameState.m_points += points;
 }
 
-void GJBaseGameLayer::addToGroupParents(GameObject* object) {
-    if (object->m_hasGroupParentsString) {
-        if (auto groupIDs = static_cast<cocos2d::CCArray*>(m_removedParentGroupIDs->objectForKey(object->m_uniqueID))) {
-            object->m_hasGroupParentsString = false;
-            for (int i = 0; i < groupIDs->count(); i++) {
-                auto groupID = static_cast<cocos2d::CCInteger*>(groupIDs->objectAtIndex(i))->getValue();
-                if (m_parentGroupsDict->objectForKey(groupID)) {
-                    this->setGroupParent(object, groupID);
-                }
-            }
-            m_removedParentGroupIDs->removeObjectForKey(object->m_uniqueID);
-        }
-    }
-}
-
 void GJBaseGameLayer::animateOutGroundNew(bool instant) {
     m_gameState.m_unkBool7 = false;
     if (m_gameState.m_unkBool1) {
@@ -445,12 +430,12 @@ void GJBaseGameLayer::applyShake(cocos2d::CCPoint& point) {
             xFactor = ((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
             yFactor = ((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
         }
-        m_gameState.m_unkPoint34.x = xFactor * m_gameState.m_unkUint15;
-        m_gameState.m_unkPoint34.y = yFactor * m_gameState.m_unkUint15;
+        m_gameState.m_cameraShakeOffset.x = xFactor * m_gameState.m_unkUint15;
+        m_gameState.m_cameraShakeOffset.y = yFactor * m_gameState.m_unkUint15;
     }
 
-    point.x += m_gameState.m_unkPoint34.x;
-    point.y += m_gameState.m_unkPoint34.y;
+    point.x += m_gameState.m_cameraShakeOffset.x;
+    point.y += m_gameState.m_cameraShakeOffset.y;
 }
 
 void GJBaseGameLayer::asyncBGLoaded(int background) {
@@ -471,6 +456,7 @@ void GJBaseGameLayer::asyncMGLoaded(int middleground) {
 void GJBaseGameLayer::clearActivatedAudioTriggers() {
     m_gameState.m_songChannelStates.clear();
     m_gameState.m_songTriggerStateVectors.clear();
+    m_gameState.m_sfxTriggerStates.clear();
 }
 
 void GJBaseGameLayer::collectedObject(EffectGameObject* object) {
@@ -639,9 +625,10 @@ std::string GJBaseGameLayer::getCapacityString() {
         auto capacity = node->getUsedAtlasCapacity();
         if (capacity > 200) {
             if (!first) fmt::format_to(std::back_inserter(buffer), ",");
-            fmt::format_to(std::back_inserter(buffer), "{},{}", capacity, index++);
+            fmt::format_to(std::back_inserter(buffer), "{},{}", index, capacity);
             first = false;
         }
+        ++index;
     }
     return fmt::to_string(buffer);
 }
@@ -667,20 +654,6 @@ float GJBaseGameLayer::getGroundHeight(PlayerObject* player, int type) {
         return std::max(height1, height2);
     }
     return this->getGroundHeightForMode(type);
-}
-
-std::string GJBaseGameLayer::getGroupParentsString(GameObject* object) {
-    auto groupParents = static_cast<cocos2d::CCArray*>(m_parentGroupIDs->objectForKey(object->m_uniqueID));
-    if (!groupParents || groupParents->count() == 0) return "";
-    fmt::memory_buffer buffer;
-    auto first = true;
-    for (auto i = 0; i < groupParents->count(); i++) {
-        auto groupID = static_cast<cocos2d::CCInteger*>(groupParents->objectAtIndex(i))->getValue();
-        if (!first) fmt::format_to(std::back_inserter(buffer), ".");
-        fmt::format_to(std::back_inserter(buffer), "{}", groupID);
-        first = false;
-    }
-    return fmt::to_string(buffer);
 }
 
 cocos2d::CCPoint GJBaseGameLayer::getMoveTargetDelta(EffectGameObject* object, bool mainObject) {
@@ -715,6 +688,7 @@ PlayerObject* GJBaseGameLayer::getOtherPlayer(PlayerObject* player) {
 }
 
 int GJBaseGameLayer::getPlayerButtonID(int button, bool player2) {
+    if (button == 98 || button == 99) return button;
     if (button < 2 || button > 5) return player2 ? 6 : 1;
     return player2 ? button + 5 : button;
 }
@@ -1062,18 +1036,6 @@ void GJBaseGameLayer::removeBackground() {
     }
 }
 
-void GJBaseGameLayer::removeFromGroupParents(GameObject* object) {
-    if (object->m_hasGroupParentsString) {
-        if (auto groupIDs = static_cast<cocos2d::CCArray*>(m_removedParentGroupIDs->objectForKey(object->m_uniqueID))) {
-            for (int i = 0; i < groupIDs->count(); i++) {
-                m_parentGroupsDict->removeObjectForKey(static_cast<cocos2d::CCInteger*>(groupIDs->objectAtIndex(i))->getValue());
-            }
-            m_removedParentGroupIDs->removeObjectForKey(object->m_uniqueID);
-            m_parentGroupIDs->removeObjectForKey(object->m_uniqueID);
-        }
-    }
-}
-
 void GJBaseGameLayer::removeFromStickyGroup(GameObject* object) {
     if (object->m_linkedGroup != 0) {
         if (auto stickyGroup = this->getStickyGroup(object->m_linkedGroup)) stickyGroup->removeObject(object);
@@ -1273,11 +1235,11 @@ void GJBaseGameLayer::stopCustomEnterEffect(EnterEffectObject* object) {
 void GJBaseGameLayer::stopSFXTrigger(SFXTriggerGameObject* object) {
     if (object->m_objectID != 3602) return;
     auto engine = FMODAudioEngine::sharedEngine();
-    for (auto& channel : m_gameState.m_unkUMap8[object->m_uniqueID]) {
+    for (auto& channel : m_gameState.m_sfxTriggerChannels[object->m_uniqueID]) {
         engine->stopChannel(channel);
         m_gameState.m_proximityVolumeRelated.erase({ channel, 0 });
     }
-    m_gameState.m_unkUMap8[object->m_uniqueID].clear();
+    m_gameState.m_sfxTriggerChannels[object->m_uniqueID].clear();
 }
 
 void GJBaseGameLayer::swapBackground(int background) {
@@ -1328,24 +1290,6 @@ void GJBaseGameLayer::switchToFlyMode(PlayerObject* player, GameObject* object, 
     this->toggleGlitter(true);
 }
 
-void GJBaseGameLayer::switchToRobotMode(PlayerObject* player, GameObject* portal, bool noPortal) {
-    player->switchedToMode(GameObjectType::RobotPortal);
-    auto lastPortal = this->processCameraObject(portal, player);
-    player->toggleRobotMode(true, lastPortal && lastPortal->m_hasNoEffects);
-}
-
-void GJBaseGameLayer::switchToRollMode(PlayerObject* player, GameObject* portal, bool noPortal) {
-    player->switchedToMode(GameObjectType::BallPortal);
-    auto lastPortal = this->processCameraObject(portal, player);
-    player->toggleRollMode(true, lastPortal && lastPortal->m_hasNoEffects);
-}
-
-void GJBaseGameLayer::switchToSpiderMode(PlayerObject* player, GameObject* portal, bool noPortal) {
-    player->switchedToMode(GameObjectType::SpiderPortal);
-    auto lastPortal = this->processCameraObject(portal, player);
-    player->toggleSpiderMode(true, lastPortal && lastPortal->m_hasNoEffects);
-}
-
 void GJBaseGameLayer::testInstantCountTrigger(int itemID, int compareCount, int groupID, bool activateGroup, int triggerMode, std::vector<int> const& remapKeys, int uniqueID, int controlID) {
     auto itemCount = m_effectManager->countForItem(itemID);
     switch (triggerMode) {
@@ -1385,12 +1329,13 @@ void GJBaseGameLayer::triggerAdvancedFollowCommand(AdvancedFollowTriggerObject* 
         if (inst.m_gameObject != object || inst.m_group != object->m_targetGroupID || inst.m_objectKey != targetID || inst.m_controlId != object->m_controlID) continue;
         inst.m_finished = false;
         inst.m_doStart = false;
-        inst.m_relatedToGJGameStateUnkUint7 = ++m_gameState.m_unkUint7;
+        inst.m_relatedToGJGameStateUnkUint7 = ++m_gameState.m_advancedFollowCounter;
         exists = true;
     }
     if (!exists) {
-        m_gameState.m_advanceFollowInstances.emplace_back(object, object->m_targetGroupID, targetID, 0, ++m_gameState.m_unkUint7, object->m_controlID);
+        m_gameState.m_advanceFollowInstances.emplace_back(object, object->m_targetGroupID, targetID, 0, ++m_gameState.m_advancedFollowCounter, object->m_controlID);
     }
+    m_gameState.m_advancedFollowNeedsSort = true;
 }
 
 void GJBaseGameLayer::triggerAreaEffectAnimation(EnterEffectObject* object) {
@@ -1411,7 +1356,6 @@ void GJBaseGameLayer::triggerAreaEffectAnimation(EnterEffectObject* object) {
                     inst.loadTransitions(object, m_gameState.m_totalTime);
                     if (targetID > 0) break;
                 }
-                else break;
             }
         }
     }
@@ -1464,75 +1408,6 @@ void GJBaseGameLayer::triggerGravityChange(EffectGameObject* object, int playerI
     }
 }
 
-void GJBaseGameLayer::triggerRotateCommand(EnhancedTriggerObject* object) {
-    if (object->m_isDynamicMode && object->m_duration != 0.f) {
-        if (object->m_useMoveTarget || object->m_isDirectionFollowSnap360) {
-            this->triggerDynamicRotateCommand(object);
-        }
-    }
-    else {
-        auto rotation = object->m_times360 * 360.f + object->m_rotationDegrees;
-        if (object->m_useMoveTarget || object->m_isDirectionFollowSnap360) {
-            GameObject* centerObject;
-            GameObject* targetObject;
-            GameObject* rotateObject;
-            this->getRotateCommandTargets(object, centerObject, targetObject, rotateObject);
-            if (centerObject && targetObject && rotateObject) {
-                auto minXObject = this->tryGetObject(object->m_minXID);
-                auto minYObject = this->tryGetObject(object->m_minYID);
-                auto maxXObject = this->tryGetObject(object->m_maxXID);
-                auto maxYObject = this->tryGetObject(object->m_maxYID);
-                auto centerPosition = centerObject->getRealPosition();
-                auto targetPosition = targetObject->getRealPosition();
-                auto rotatePosition = rotateObject->getRealPosition();
-                if (centerObject == targetObject) {
-                    rotation = centerObject->getRotation();
-                }
-                else {
-                    auto difference = targetPosition - centerPosition;
-                    if (sqrtf(difference.x * difference.x + difference.y * difference.y) < .01f) {
-                        rotation = centerObject->getRotation();
-                    }
-                    else {
-                        rotation = 90.f - atan2f(difference.y, difference.x) * (180.f / M_PI);
-                    }
-                }
-                auto distance = 0.f;
-                if (centerObject != targetObject) {
-                    if (object->m_useMoveTarget) {
-                        if (minXObject) {
-                            auto minX = minXObject->getRealPosition().x;
-                            if (rotatePosition.x < minX) rotatePosition.x = minX;
-                        }
-                        if (maxXObject) {
-                            auto maxX = maxXObject->getRealPosition().x;
-                            if (rotatePosition.x > maxX) rotatePosition.x = maxX;
-                        }
-                        if (minYObject) {
-                            auto minY = minYObject->getRealPosition().y;
-                            if (rotatePosition.y < minY) rotatePosition.y = minY;
-                        }
-                        if (maxYObject) {
-                            auto maxY = maxYObject->getRealPosition().y;
-                            if (rotatePosition.y > maxY) rotatePosition.y = maxY;
-                        }
-                        auto difference = rotatePosition - centerPosition;
-                        if (sqrtf(difference.x * difference.x + difference.y * difference.y) >= .01f) {
-                            distance = 90.f - atan2f(difference.y, difference.x) * (180.f / M_PI);
-                        }
-                    }
-                    else {
-                        distance = rotateObject->getRotation();
-                    }
-                }
-                rotation = convertToClosestDirection(distance - rotation + object->m_rotationOffset, 180.f);
-            }
-            m_effectManager->createRotateCommand(rotation, object->m_duration, object->m_targetGroupID, object->m_centerGroupID,
-                (int)object->m_easingType, object->m_easingRate, object->m_lockObjectRotation, false, false, object->m_uniqueID, object->m_controlID);
-        }
-    }
-}
-
 void GJBaseGameLayer::tryResumeAudio() {
     if (m_resumeTimer < 1 && m_audioPaused) {
         this->resumeAudio();
@@ -1561,12 +1436,12 @@ void GJBaseGameLayer::updateActiveEnterEffect(EnterEffectObject* object) {
     if (enterType == 0 || enterType == 1) {
         m_gameState.m_enterChannelMap[object->m_enterChannel] = id;
         if (id == -15) this->addCustomEnterEffect(object, true);
-        else this->removeCustomEnterEffects(id, true);
+        else this->removeCustomEnterEffects(object->m_enterChannel, true);
     }
     if (enterType == 0 || enterType == 2) {
         m_gameState.m_exitChannelMap[object->m_enterChannel] = id;
         if (id == -15) this->addCustomEnterEffect(object, false);
-        else this->removeCustomEnterEffects(id, false);
+        else this->removeCustomEnterEffects(object->m_enterChannel, false);
     }
 }
 
@@ -1700,8 +1575,8 @@ void GJBaseGameLayer::updateSavePositionObjects() {
             position = object->m_lastPosition;
         }
         auto index = (m_gameState.m_unkUint11 % value + offset) * 2;
-        m_gameState.m_unkVecFloat1[index] = position.x;
-        m_gameState.m_unkVecFloat1[index + 1] = position.y;
+        m_gameState.m_positionHistory[index] = position.x;
+        m_gameState.m_positionHistory[index + 1] = position.y;
     }
 }
 
@@ -1723,6 +1598,26 @@ void GJBaseGameLayer::queueTimeWarp(float timeWarp) {
 }
 #endif
 
+#if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_INTEL_MAC)
+void GJBaseGameLayer::switchToRobotMode(PlayerObject* player, GameObject* portal, bool noPortal) {
+    player->switchedToMode(GameObjectType::RobotPortal);
+    auto lastPortal = this->processCameraObject(portal, player);
+    player->toggleRobotMode(true, lastPortal && lastPortal->m_hasNoEffects);
+}
+
+void GJBaseGameLayer::switchToRollMode(PlayerObject* player, GameObject* portal, bool noPortal) {
+    player->switchedToMode(GameObjectType::BallPortal);
+    auto lastPortal = this->processCameraObject(portal, player);
+    player->toggleRollMode(true, lastPortal && lastPortal->m_hasNoEffects);
+}
+
+void GJBaseGameLayer::switchToSpiderMode(PlayerObject* player, GameObject* portal, bool noPortal) {
+    player->switchedToMode(GameObjectType::SpiderPortal);
+    auto lastPortal = this->processCameraObject(portal, player);
+    player->toggleSpiderMode(true, lastPortal && lastPortal->m_hasNoEffects);
+}
+#endif
+
 #if defined(GEODE_IS_ANDROID)
 float GJBaseGameLayer::getAreaObjectValue(EnterEffectInstance* instance, GameObject* object, cocos2d::CCPoint& position, bool& show) {
     auto realPosition = object->getRealPosition();
@@ -1730,13 +1625,13 @@ float GJBaseGameLayer::getAreaObjectValue(EnterEffectInstance* instance, GameObj
     switch (instance->m_gameObject->m_directionType) {
         case 1: {
             value = realPosition.x - position.x + (instance->m_offsetVariance != 0.f ? instance->m_offsetVariance * m_varianceValues[object->m_varianceIndex + 1] : 0.f);
-            value *= value > 0.f ? instance->m_modFront : instance->m_modBack;
+            value *= value >= 0.f ? instance->m_modBack : instance->m_modFront;
             show = instance->m_reversed ? position.x >= realPosition.x : position.x <= realPosition.x;
             break;
         }
         case 2: {
             value = realPosition.y - position.y + (instance->m_offsetVariance != 0.f ? instance->m_offsetVariance * m_varianceValues[object->m_varianceIndex + 1] : 0.f);
-            value *= value > 0.f ? instance->m_modFront : instance->m_modBack;
+            value *= value >= 0.f ? instance->m_modBack : instance->m_modFront;
             show = instance->m_reversed ? position.y >= realPosition.y : position.y <= realPosition.y;
             break;
         }

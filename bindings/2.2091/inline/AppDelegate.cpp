@@ -1,30 +1,37 @@
 #include <Geode/binding/AppDelegate.hpp>
+#include <Geode/binding/GameLevelManager.hpp>
 #include <Geode/binding/FMODAudioEngine.hpp>
 #include <Geode/binding/PlatformToolbox.hpp>
 #include <Geode/mapping/CCDirector.hpp>
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
 void AppDelegate::setIdleTimerDisabled(bool disabled) {}
-#endif
 
-#if defined(GEODE_IS_WINDOWS)
 AppDelegate* AppDelegate::get() {
     return static_cast<AppDelegate*>(cocos2d::CCApplication::sharedApplication());
 }
+#endif
+
+#if defined(GEODE_IS_WINDOWS)
 
 float AppDelegate::bgScale() {
     return cocos2d::CCDirector::sharedDirector()->getScreenScaleFactorMax();
 }
 
 void AppDelegate::checkSound() {
-    if (this->musicTest()) FMODAudioEngine::sharedEngine()->pauseAllMusic(true);
+    FMODAudioEngine::sharedEngine()->resumeAudio();
 }
 
 void AppDelegate::hideLoadingCircle() {}
 
 void AppDelegate::loadingIsFinished() {
     m_loadingFinished = true;
+    GameLevelManager::sharedState()->replayPlatformerSaveJournal();
     PlatformToolbox::reportLoadingFinished();
+}
+
+void AppDelegate::pauseSound() {
+    FMODAudioEngine::sharedEngine()->stop();
 }
 
 void AppDelegate::showLoadingCircle(bool unk1, bool unk2, bool unk3) {}

@@ -6,16 +6,6 @@ ButtonPage::ButtonPage() {}
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-ButtonPage* ButtonPage::create(cocos2d::CCArray* objects, cocos2d::CCPoint position, int rows, float spacing) {
-    auto ret = new ButtonPage();
-    if (ret->init(objects, position, rows, spacing)) {
-        ret->autorelease();
-        return ret;
-    }
-    delete ret;
-    return nullptr;
-}
-
 bool ButtonPage::init(cocos2d::CCArray* objects, cocos2d::CCPoint position, int rows, float spacing) {
     if (!cocos2d::CCLayer::init()) return false;
 
@@ -29,7 +19,7 @@ bool ButtonPage::init(cocos2d::CCArray* objects, cocos2d::CCPoint position, int 
         auto node = static_cast<cocos2d::CCNode*>(objects->objectAtIndex(i));
         menu->addChild(node);
         node->setPosition(menu->convertToNodeSpace({
-            (i % rows) + (spacing + 4.f) * (spacing * .5f + x - rows * spacing * .5f - (rows - 1) * 2.f),
+            (spacing * .5f + x - rows * spacing * .5f - (rows - 1) * 2.f) + (i % rows) * (spacing + 4.f),
             (y - spacing * .5f) - row * (spacing + 4.f)
         }));
     }

@@ -23,21 +23,12 @@ void AccountRegisterLayer::hideLoadingUI() {
     m_loadingCircle->setVisible(false);
 }
 
-bool AccountRegisterLayer::validPassword(std::string password) {
-    return password.size() > 5;
-}
-
 bool AccountRegisterLayer::validUser(std::string username) {
     return username.size() > 2;
 }
 #endif
 
 #if defined(GEODE_IS_WINDOWS)
-AccountRegisterLayer::~AccountRegisterLayer() {
-    auto gjam = GJAccountManager::sharedState();
-    if (gjam->m_accountRegisterDelegate == this) gjam->m_accountRegisterDelegate = nullptr;
-    CC_SAFE_RELEASE(m_loadingCircle);
-}
 
 AccountRegisterLayer* AccountRegisterLayer::create() {
     auto ret = new AccountRegisterLayer();
@@ -51,7 +42,6 @@ AccountRegisterLayer* AccountRegisterLayer::create() {
 
 void AccountRegisterLayer::textInputOpened(CCTextInputNode* node) {}
 
-void AccountRegisterLayer::textChanged(CCTextInputNode* node) {}
 
 void AccountRegisterLayer::resetLabels() {
     this->resetLabel(1);

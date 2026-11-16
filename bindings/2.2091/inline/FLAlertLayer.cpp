@@ -1,16 +1,28 @@
 #include <Geode/binding/FLAlertLayer.hpp>
 
 FLAlertLayer* FLAlertLayer::create(char const* title, const std::string& desc, char const* btn) {
-    return FLAlertLayer::create(nullptr, title, desc, btn, nullptr, 300.0);
+    return FLAlertLayer::create(nullptr, title, desc, btn, nullptr, 250.0);
 }
 
+#ifndef GEODE_IS_WINDOWS
 FLAlertLayer* FLAlertLayer::create(FLAlertLayerProtocol* delegate, char const* title, std::string desc, char const* btn1, char const* btn2) {
-    return FLAlertLayer::create(delegate, title, desc, btn1, btn2, 300.0);
+    return FLAlertLayer::create(delegate, title, desc, btn1, btn2, 250.0);
 }
+#endif
+
+bool FLAlertLayer::ownsTouchPrio() { return false; }
 
 void FLAlertLayer::rebuildContent() {}
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
+#endif
+
+#ifdef GEODE_IS_WINDOWS
+float FLAlertLayer::keyboardRaise(float popupHeight, float maxRaise) {
+    // this has an actual impl on android, but on windows it just seems to be
+    // a stub that got inlined everywhere where it's used that always returns 0
+    return 0;
+}
 #endif
 
 #if defined(GEODE_IS_MACOS) || defined(GEODE_IS_ANDROID)
@@ -29,6 +41,11 @@ FLAlertLayer::FLAlertLayer() {
     m_joystickConnected = -1;
     m_containsBorder = 0;
     m_forcePrioRegistered = false;
+    m_color2 = {0, 0, 0};
+    m_noAction = false;
+    m_width = 0.f;
+    m_height = 0.f;
+    m_unk290 = false;
 }
 #endif
 

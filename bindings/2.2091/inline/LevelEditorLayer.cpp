@@ -19,7 +19,6 @@
 #include <Geode/binding/StartPosObject.hpp>
 #include <Geode/binding/UILayer.hpp>
 #include <Geode/binding/UndoObject.hpp>
-#include <Geode/binding/SFXTriggerGameObject.hpp>
 
 LevelEditorLayer* LevelEditorLayer::get() {
     return GameManager::sharedState()->m_levelEditorLayer;
@@ -168,8 +167,8 @@ void LevelEditorLayer::triggerRotateCommand(EffectGameObject* object) {
 }
 
 void LevelEditorLayer::updateArt(float dt) {
-    if (m_playbackMode != PlaybackMode::Not) return;
     this->updateGridLayerParent();
+    if (m_playbackMode != PlaybackMode::Not) return;
     m_inShaderParent->setVisible(m_inShaderParent->getChildrenCount() > 1 || m_inShaderObjectLayer->getChildrenCount() != 0);
     m_aboveShaderParent->setVisible(m_aboveShaderParent->getChildrenCount() > 1 || m_aboveShaderObjectLayer->getChildrenCount() != 0);
     this->updateGradientLayers();
@@ -331,49 +330,6 @@ std::string LevelEditorLayer::getLockedLayers() {
     return fmt::to_string(buffer);
 }
 
-int LevelEditorLayer::getNextFreeBlockID(const std::unordered_set<int>& exclude) {
-    std::unordered_set<int> ids;
-    this->addExclusionList(exclude, ids);
-    for (auto object : geode::cocos::CCArrayExt<EffectGameObject, false>(this->getAllObjects())) {
-        if (object->m_classType == GameObjectClassType::Effect || object->m_objectID == 1816) {
-            ids.insert(object->m_itemID);
-        }
-    }
-    for (int i = 1; i < 1001; i++) {
-        if (ids.find(i) == ids.end()) return i;
-    }
-    return 1000;
-}
-
-int LevelEditorLayer::getNextFreeSFXGroupID(const std::unordered_set<int>& exclude) {
-    std::unordered_set<int> ids;
-    this->addExclusionList(exclude, ids);
-    for (auto object : geode::cocos::CCArrayExt<SFXTriggerGameObject, false>(this->getAllObjects())) {
-        if ((object->m_objectID == 3602 || object->m_objectID == 3603) && object->m_sfxGroup > 0) {
-            ids.insert(object->m_sfxGroup);
-        }
-    }
-    for (int i = 1; i < 1001; i++) {
-        if (ids.find(i) == ids.end()) return i;
-    }
-    return 1000;
-}
-
-int LevelEditorLayer::getNextFreeSFXID(const std::unordered_set<int>& exclude) {
-    std::unordered_set<int> ids;
-    this->addExclusionList(exclude, ids);
-    for (auto object : geode::cocos::CCArrayExt<SFXTriggerGameObject, false>(this->getAllObjects())) {
-        if (object->m_objectID == 3602) {
-            auto id = object->getUniqueSFXID();
-            if (id > 0) ids.insert(id);
-        }
-    }
-    for (int i = 1; i < 1001; i++) {
-        if (ids.find(i) == ids.end()) return i;
-    }
-    return 1000;
-}
-
 cocos2d::CCPoint LevelEditorLayer::getSavedEditorPosition(int index) {
     return index < 10 ? m_savedPositions[index] : cocos2d::CCPoint { 0.f, 0.f };
 }
@@ -409,9 +365,9 @@ int LevelEditorLayer::getSelectedOrderChannel() {
     return static_cast<StartPosObject*>(m_playbackObject)->m_startSettings->m_targetChannel;
 }
 
-bool LevelEditorLayer::hasAction(bool redo) {
-    if (redo) return m_redoObjects->count() != 0;
-    else return m_undoObjects->count() != 0;
+bool LevelEditorLayer::hasAction(bool undo) {
+    if (undo) return m_undoObjects->count() != 0;
+    else return m_redoObjects->count() != 0;
 }
 
 bool LevelEditorLayer::isLayerLocked(int layer) {
@@ -419,47 +375,6 @@ bool LevelEditorLayer::isLayerLocked(int layer) {
         return m_lockedLayers[layer];
     }
     return false;
-}
-
-void LevelEditorLayer::onPausePlaytest() {
-    auto director = cocos2d::CCDirector::sharedDirector();
-    director->getKeyboardDispatcher()->setBlockRepeat(false);
-    m_uiLayer->editorPlaytest(false);
-    this->quickUpdateAllPositions();
-    this->removePlayerCollisionBlock();
-    if (m_playTestSmoothFix) {
-        director->resetSmoothFixCounter();
-        director->setSmoothFixCheck(false);
-    }
-    m_playbackMode = PlaybackMode::Paused;
-    m_player1->pauseSchedulerAndActions();
-    m_player2->pauseSchedulerAndActions();
-    m_playtestTimeWarp = m_gameState.m_timeWarp;
-    this->updateTimeWarp(1.f);
-    m_playtestCameraZoom = m_gameState.m_cameraZoom;
-    this->pauseAudio();
-    if (m_playtestOrderChanged) this->timeObjectChanged();
-}
-
-void LevelEditorLayer::onResumePlaytest() {
-    auto director = cocos2d::CCDirector::sharedDirector();
-    director->getKeyboardDispatcher()->setBlockRepeat(true);
-    m_uiLayer->editorPlaytest(true);
-    this->addPlayerCollisionBlock();
-    if (m_playTestSmoothFix) {
-        director->resetSmoothFixCounter();
-        director->setSmoothFixCheck(false);
-    }
-    m_playtestZoom = m_objectLayer->getScale();
-    m_objectLayer->setScale(std::max(m_playtestZoom, 0.7f));
-    m_playbackMode = PlaybackMode::Playing;
-    m_player1->resumeSchedulerAndActions();
-    m_player2->pauseSchedulerAndActions();
-    m_gameState.m_cameraZoom = m_playtestCameraZoom;
-    this->recreateGroups();
-    this->optimizeMoveGroups();
-    this->dirtifyTriggers();
-    this->resumeAudio();
 }
 
 void LevelEditorLayer::pasteAttributeState(GameObject* object, cocos2d::CCArray* objects) {
@@ -519,10 +434,6 @@ void LevelEditorLayer::pasteParticleState(ParticleGameObject* object, cocos2d::C
     }
 }
 
-void LevelEditorLayer::redoLastAction() {
-    return this->handleAction(false, m_redoObjects);
-}
-
 void LevelEditorLayer::refreshSpecial(GameObject* object) {
     this->removeSpecial(object);
     this->addSpecial(object);
@@ -539,6 +450,7 @@ void LevelEditorLayer::removeAllObjects() {
     m_redoObjects->removeAllObjects();
     m_undoObjects->removeAllObjects();
     m_objectCount = 0;
+    m_groupsChanged = true;
     m_removingAll = false;
 }
 
@@ -619,18 +531,16 @@ void LevelEditorLayer::toggleGround(bool enable) {
 }
 
 void LevelEditorLayer::toggleLockActiveLayer() {
-    if (m_currentLayer < 0 || m_currentLayer > 9999 || !m_layerLockingEnabled) return;
+    if (m_currentLayer < 1 || m_currentLayer > 9999 || !m_layerLockingEnabled) return;
     m_lockedLayers[m_currentLayer] = !m_lockedLayers[m_currentLayer];
-}
-
-void LevelEditorLayer::undoLastAction() {
-    return this->handleAction(true, m_undoObjects);
+    m_lockedLayerCount += m_lockedLayers[m_currentLayer] ? 1 : -1;
 }
 
 void LevelEditorLayer::unlockAllLayers() {
     for (int i = 0; i < 10000; i++) {
         m_lockedLayers[i] = false;
     }
+    m_lockedLayerCount = 0;
 }
 
 void LevelEditorLayer::updateGridLayer() {
@@ -643,30 +553,16 @@ void LevelEditorLayer::updateGridLayer() {
     }
 }
 
-bool LevelEditorLayer::validGroup(GameObject* object, bool checkLockedLayers) {
-    int currentLayer = m_currentLayer;
-    int editorLayer = object->m_editorLayer;
-    int editorLayer2 = object->m_editorLayer2;
-    if (editorLayer2 == 0) editorLayer2 = -1;
-    auto result = currentLayer == -1 || editorLayer2 == currentLayer || editorLayer == currentLayer;
-    if (checkLockedLayers) {
-        editorLayer2 = std::clamp(editorLayer2, -1, 9999);
-        result = false;
-        if (currentLayer == -1 || editorLayer2 == currentLayer || editorLayer == currentLayer) {
-            editorLayer = std::clamp(editorLayer, 0, 9999);
-            result = !m_lockedLayers[editorLayer] && (editorLayer2 == -1 || !m_lockedLayers[editorLayer2]);
-        }
-    }
-    return result;
-}
 #endif
 
 #if defined(GEODE_IS_IOS)
 void LevelEditorLayer::addDelayedSpawn(EffectGameObject* object, float delay) {
-    auto node = this->getDelayedSpawnNode();
-    node->m_gameObject = object;
-    node->m_spawnDelay = delay;
-    if (m_delayedSpawnNodes.size() > 1) m_sortSpawnNodes = true;
+    if (!m_hasHighDetail || !object->m_isHighDetail) {
+        auto node = this->getDelayedSpawnNode();
+        node->m_gameObject = object;
+        node->m_spawnDelay = delay;
+        if (m_delayedSpawnNodes.size() > 1) m_sortSpawnNodes = true;
+    }
 }
 #endif
 

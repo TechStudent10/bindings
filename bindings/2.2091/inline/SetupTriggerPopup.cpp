@@ -5,7 +5,7 @@
 #include <Geode/binding/GameToolbox.hpp>
 #include <Geode/binding/Slider.hpp>
 
-#if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_MACOS)
+#if defined(GEODE_IS_ANDROID)
 SetupTriggerPopup::SetupTriggerPopup() {
     m_gameObject = nullptr;
     m_gameObjects = nullptr;
@@ -78,6 +78,7 @@ SetupTriggerPopup* SetupTriggerPopup::create(EffectGameObject* trigger, cocos2d:
     return nullptr;
 }
 
+#if defined(GEODE_IS_IOS)
 void SetupTriggerPopup::closeInputNodes() {
     cocos2d::CCDictElement* element;
     cocos2d::CCDictElement* temp;
@@ -87,6 +88,7 @@ void SetupTriggerPopup::closeInputNodes() {
         inputNode->onClickTrackNode(false);
     }
 }
+#endif
 
 void SetupTriggerPopup::createValueControlWArrows(int property, std::string label, cocos2d::CCPoint position, float scale) {
     this->createValueControlAdvanced(property, label, position, scale, true, InputValueType::Int, 6, true, 0.f, 0.f, 0, 0, GJInputStyle::GoldLabel, 2, false);
@@ -138,20 +140,8 @@ void SetupTriggerPopup::addObjectToGroup(cocos2d::CCObject* object, int group) {
     this->getGroupContainer(group)->addObject(object);
 }
 
-cocos2d::CCArray* SetupTriggerPopup::createToggleValueControlAdvanced(int property, std::string label, cocos2d::CCPoint position, bool vertical, int page, int group, float buttonScale, float labelScale, float labelWidth, cocos2d::CCPoint offset) {
-    auto pageContainer = this->getPageContainer(page);
-    auto groupContainer = this->getGroupContainer(group);
-    auto nodes = cocos2d::CCArray::create();
-    auto toggle = GameToolbox::createToggleButton(
-        label, menu_selector(SetupTriggerPopup::onToggleTriggerValue), false, m_buttonMenu, position,
-        this, m_mainLayer, buttonScale, labelScale, labelWidth, offset, "bigFont.fnt", vertical, 0, nodes
-    );
-    toggle->setTag(property);
-    toggle->m_notClickable = true;
-    m_valueToggles->setObject(toggle, property);
-    pageContainer->addObjectsFromArray(nodes);
-    if (group > 0) groupContainer->addObjectsFromArray(nodes);
-    return nodes;
+void SetupTriggerPopup::addObjectToPage(cocos2d::CCObject* object, int page) {
+    this->getPageContainer(page)->addObject(object);
 }
 
 cocos2d::CCArray* SetupTriggerPopup::getObjects() {
@@ -179,22 +169,6 @@ void SetupTriggerPopup::postSetup() {
     m_disableTextDelegate = false;
 }
 
-void SetupTriggerPopup::preSetup() {
-    m_disableTextDelegate = true;
-    this->determineStartValues();
-}
-
-void SetupTriggerPopup::refreshGroupVisibility() {
-    for (int i = 0; i < m_groupContainers->count(); i++) {
-        auto groupContainer = static_cast<cocos2d::CCArray*>(m_groupContainers->objectAtIndex(i));
-        auto tag = groupContainer->getTag();
-        for (int j = 0; j < groupContainer->count(); j++) {
-            auto node = static_cast<cocos2d::CCNode*>(groupContainer->objectAtIndex(j));
-            if (node->isVisible() && tag == 0) node->setVisible(false);
-        }
-    }
-}
-
 void SetupTriggerPopup::removeObjectFromPage(cocos2d::CCObject* object, int page) {
     this->getPageContainer(page)->removeObject(object);
 }
@@ -214,6 +188,7 @@ void SetupTriggerPopup::setMaxSliderValue(float value, int property) {
 
 void SetupTriggerPopup::toggleBG(bool visible) {
     if (auto background = m_mainLayer->getChildByTag(1)) background->setVisible(visible);
+    if (auto background = m_mainLayer->getChildByTag(3)) background->setVisible(visible);
 }
 
 void SetupTriggerPopup::toggleLimitValue(int property, bool limit) {
@@ -242,7 +217,7 @@ void SetupTriggerPopup::updateSlider(int property, float value) {
 
 #if defined(GEODE_IS_IOS)
 float SetupTriggerPopup::getTruncatedValue(float value, int decimals) {
-    if (decimals < 1) return value;
+    if (decimals < 1) return (float)(int)value;
     auto exponent = decimals > 1 ? powf(10.f, decimals) : 10.f;
     return roundf(value * exponent) / exponent;
 }

@@ -35,10 +35,6 @@ bool GameManager::getGameVariableDefault(const char* key, bool defaultValue) {
     return object->boolValue();
 }
 
-int GameManager::getIntGameVariable(const char* key) {
-    return m_valueKeeper->valueForKey(std::string("gv_") + key)->intValue();
-}
-
 int GameManager::getIntGameVariableDefault(const char* key, int defaultValue) {
     //helper function
     auto object = m_valueKeeper->valueForKey(std::string("gv_") + key);
@@ -425,16 +421,6 @@ void GameManager::followTwitch() {
     }
 }
 
-void GameManager::followTwitter() {
-    if (GameToolbox::doWeHaveInternet()) {
-        cocos2d::CCApplication::sharedApplication()->openURL("https://twitter.com/robtopgames");
-        m_clickedTwitter = true;
-        __timeb64 current;
-        _ftime64_s(&current);
-        m_socialsDuration = ((current.time & 0xfffff) * 1000 + current.millitm) / 1000.0;
-    }
-}
-
 const char* GameManager::getBGTexture(int index) {
     index = std::clamp(index, 0, 59);
     this->loadBackground(index);
@@ -477,12 +463,12 @@ const char* GameManager::getMGTexture(int index) {
 
 int GameManager::getNextUniqueObjectKey() {
     auto customKeys = this->getOrderedCustomObjectKeys();
-    auto result = -1;
+    auto result = 0;
     for (auto str : geode::cocos::CCArrayExt<cocos2d::CCString, false>(customKeys)) {
         auto key = str->intValue();
         if (key < result) result = key;
     }
-    return result;
+    return result - 1;
 }
 
 int GameManager::getNextUsedKey(int index, bool up) {
@@ -544,16 +530,6 @@ void GameManager::joinReddit() {
     if (GameToolbox::doWeHaveInternet()) {
         cocos2d::CCApplication::sharedApplication()->openURL("https://www.reddit.com/r/geometrydash/");
         m_clickedReddit = true;
-        __timeb64 current;
-        _ftime64_s(&current);
-        m_socialsDuration = ((current.time & 0xfffff) * 1000 + current.millitm) / 1000.0;
-    }
-}
-
-void GameManager::likeFacebook() {
-    if (GameToolbox::doWeHaveInternet()) {
-        cocos2d::CCApplication::sharedApplication()->openURL("https://www.facebook.com/geometrydash");
-        m_clickedFacebook = true;
         __timeb64 current;
         _ftime64_s(&current);
         m_socialsDuration = ((current.time & 0xfffff) * 1000 + current.millitm) / 1000.0;
@@ -661,6 +637,10 @@ void GameManager::openEditorGuide() {
     cocos2d::CCApplication::sharedApplication()->openURL("https://www.boomlings.com/GDEditor");
 }
 
+bool GameManager::onlyCuratedLevels() {
+    return safeModeEnabled() || getGameVariable(GameVar::OnlyAllowFeatured);
+}
+
 void GameManager::printGJLog() {}
 
 void GameManager::rateGame() {
@@ -697,19 +677,13 @@ void GameManager::resetDPadSettings(bool dual) {
     else m_dpad1.reset();
 }
 
+bool GameManager::safeModeEnabled() {
+    return getGameVariable(GameVar::SafeMode) || getGameVariable(GameVar::OfflineMode);
+}
+
 void GameManager::startUpdate() {
     cocos2d::CCDirector::sharedDirector()->getScheduler()->scheduleSelector(
         schedule_selector(GameManager::update), this, 0.f, kCCRepeatForever, 0.f, false);
-}
-
-void GameManager::subYouTube() {
-    if (GameToolbox::doWeHaveInternet()) {
-        cocos2d::CCApplication::sharedApplication()->openURL("https://www.youtube.com/user/RobTopGames");
-        m_clickedYouTube = true;
-        __timeb64 current;
-        _ftime64_s(&current);
-        m_socialsDuration = ((current.time & 0xfffff) * 1000 + current.millitm) / 1000.0;
-    }
 }
 
 void GameManager::subSpotlight() {
@@ -721,8 +695,6 @@ void GameManager::subSpotlight() {
         m_socialsDuration = ((current.time & 0xfffff) * 1000 + current.millitm) / 1000.0;
     }
 }
-
-void GameManager::syncPlatformAchievements() {}
 
 void GameManager::unloadBackground() {
     if (m_loadedBgID == 0) return;
@@ -767,6 +739,16 @@ void GameManager::verifyStarUnlocks() {
         auto level = glm->getMainLevel(i, false);
         if (gsm->hasCompletedLevel(level)) gsm->completedStarLevel(level);
     }
+}
+
+bool GameManager::offlineModeEnabled() {
+    return this->getGameVariable("0219");
+}
+
+int GameManager::modUIRank() {
+    if(this->getGameVariable("0235")) return 0;
+
+    return m_hasRP;
 }
 #endif
 

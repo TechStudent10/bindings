@@ -1,6 +1,9 @@
 #include <Geode/mapping/CCDirector.hpp>
+#include <Geode/mapping/CCTime.hpp>
+#include <Geode/mapping/CCEGLView.hpp>
 #include <Geode/utils/cocos.hpp>
-
+#include <Geode/cocos/kazmath/include/kazmath/kazmath.h>
+#include <Geode/cocos/kazmath/include/kazmath/GL/matrix.h>
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_IOS)
 #endif
@@ -382,7 +385,7 @@ cocos2d::CCSize cocos2d::CCDirector::getVisibleSize() {
 }
 
 float cocos2d::CCDirector::getZEye() {
-    return m_obWinSizeInPoints.height / 1.1566f;
+    return m_obWinSizeInPoints.height / 1.1547f;
 }
 
 int cocos2d::CCDirector::levelForSceneInStack(cocos2d::CCScene* scene) {

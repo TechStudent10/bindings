@@ -5,6 +5,7 @@
 #include <Geode/binding/GameObject.hpp>
 #include <Geode/binding/HardStreak.hpp>
 #include <Geode/binding/PlayerObject.hpp>
+#include <Geode/binding/GJActionManager.hpp>
 #include <Geode/cocos/misc_nodes/CCMotionStreak.h>
 
 #if defined(GEODE_IS_ANDROID)
@@ -31,12 +32,12 @@ PlayerObject::PlayerObject() {
     new (&m_rotateObjectsRelated) decltype(m_rotateObjectsRelated)();
     new (&m_potentialSlopeMap) decltype(m_potentialSlopeMap)();
     m_rotateSpeed = 1.0f;
-    new (&m_ringRelatedSet) decltype(m_ringRelatedSet)();
+    new (&m_usedRings) decltype(m_usedRings)();
     m_playerSpeed = 0.9f;
     m_platformerVelocityRelated = 1.0f;
     new (&m_touchedRings) decltype(m_touchedRings)();
     m_gravityMod = 1.0f;
-    new (&m_jumpPadRelated) decltype(m_jumpPadRelated)();
+    new (&m_touchedForceIds) decltype(m_touchedForceIds)();
     new (&m_holdingButtons) decltype(m_holdingButtons)();
     new (&m_currentRobotAnimation) std::string("run");
 }
@@ -69,7 +70,7 @@ void PlayerObject::addToYVelocity(double yVelocity, int type) {
 }
 
 bool PlayerObject::buttonDown(PlayerButton button) {
-    return button == PlayerButton::Jump || m_jumpBuffered;
+    return button == PlayerButton::Jump ? m_jumpBuffered : false;
 }
 
 void PlayerObject::disableCustomGlowColor() {
@@ -97,12 +98,13 @@ void PlayerObject::gameEventTriggered(int gameEvent, int material) {
 }
 
 float PlayerObject::getModifiedSlopeYVel() {
-    auto diff = m_totalTime - m_slopeStartTime;
-    if (diff > 0.1) {
-        if (diff * 10.0 > 0.4) return m_slopeVelocity * diff;
-        else return m_slopeVelocity * .4f;
+    double diff = m_totalTime - m_slopeStartTime;
+    double factor = 1.0;
+    if (diff < 0.1f) {
+        factor = diff * 10.0;
+        if (factor <= 0.4f) factor = 0.4f;
     }
-    else return m_slopeVelocity * 1.f;
+    return m_slopeVelocity * factor;
 }
 
 void PlayerObject::gravityDown() {
@@ -250,6 +252,7 @@ void PlayerObject::updateLastGroundObject(GameObject* object) {
 }
 
 void PlayerObject::updatePlayerForce(cocos2d::CCPoint velocity, bool additive) {
+    m_isAccelerating = true;
     if (additive) {
         m_yVelocity += velocity.y;
         if (m_isPlatformer) {
@@ -313,11 +316,6 @@ void PlayerObject::collidedWithSlope(float dt, GameObject* object, bool skipPre)
     }
 }
 
-void PlayerObject::deactivateParticle() {
-    if (m_hasGroundParticles) m_playerGroundParticles->stopSystem();
-    m_hasGroundParticles = false;
-}
-
 void PlayerObject::deactivateStreak(bool stop) {
     if (!m_alwaysShowStreak || stop) m_regularTrail->stopStroke();
     if (m_fadeOutStreak) {
@@ -374,13 +372,12 @@ void PlayerObject::hardFlipGravity() {
 
 bool PlayerObject::isBoostValid(float yVelocity) {
     if (m_isUpsideDown) {
-        if (!m_isCurrentSlopeTop && m_slopeFlipGravityRelated) return yVelocity > m_yVelocity;
-        else return yVelocity < m_yVelocity;
+        if (m_isCurrentSlopeTop || !m_slopeFlipGravityRelated) return m_yVelocity > yVelocity;
     }
-    else {
-        if (!m_isCurrentSlopeTop || !m_slopeFlipGravityRelated) return yVelocity > m_yVelocity;
-        else return yVelocity < m_yVelocity;
+    else if (m_isCurrentSlopeTop && m_slopeFlipGravityRelated) {
+        return m_yVelocity > yVelocity;
     }
+    return m_yVelocity < yVelocity;
 }
 
 bool PlayerObject::isFlying() {
@@ -399,45 +396,42 @@ bool PlayerObject::isSafeHeadTest() {
     return this->isSafeFlip(0.2f) || this->isSafeMode(0.2f) || m_stateHitHead > 0;
 }
 
+static void snapRotation360(float& rotation) {
+    if (rotation > 180.f) rotation -= 360.f;
+    else if (rotation < -180.f) rotation += 360.f;
+}
+
 void PlayerObject::limitDashRotation(float& rotation) {
-    float offset;
-    if (m_isSideways) {
-        if (m_isGoingLeft) offset = 90.f;
-        else offset = -90.f;
+    float offset = 0.f;
+    if (m_isSideways) offset = -90.f;
+    if (m_isGoingLeft) offset += 180.f;
+
+    if (offset != 0.f) {
         rotation += offset;
-        if (rotation > 180.f) rotation -= 360.f;
-        else if (rotation < -180.f) rotation += 360.f;
+        snapRotation360(rotation);
     }
-    else {
-        if (m_isGoingLeft) {
-            offset = 180.f;
-            rotation += offset;
-            if (rotation > 180.f) rotation -= 360.f;
-            else if (rotation < -180.f) rotation += 360.f;
-        }
-        else offset = 0.f;
-    }
+
     if (std::abs(rotation) > 90.f) {
-        if (rotation > 0.f) rotation += 180.f;
-        else rotation -= 180.f;
-        if (rotation > 180.f) rotation -= 360.f;
-        else if (rotation < -180.f) rotation += 360.f;
+        rotation = (rotation > 0.f ? 180.f : -180.f) - rotation;
+        snapRotation360(rotation);
     }
+
     if (rotation > 70.f || rotation < -70.f) {
         if (rotation > 0.f) {
-            if (rotation <= 70.f || rotation >= 180.f) rotation = -70.f;
+            if (rotation > 70.f && rotation < 180.f) rotation = 70.f;
+            else rotation = -70.f;
         }
-        else if (rotation < 70.f || rotation > -180.f) {
-            rotation = -70.f;
-        }
-        else {
+        else if (rotation >= 70.f || rotation <= -180.f) {
             rotation = 70.f;
         }
+        else {
+            rotation = -70.f;
+        }
     }
+
     if (offset != 0.f) {
         rotation -= offset;
-        if (rotation > 180.f) rotation -= 360.f;
-        else if (rotation < -180.f) rotation += 360.f;
+        snapRotation360(rotation);
     }
 }
 
@@ -470,6 +464,10 @@ void PlayerObject::performSlideCheck() {
     }
 }
 
+void PlayerObject::placeStreakPoint() {
+    this->placeStreakPoint(this->getPosition());
+}
+
 void PlayerObject::playBurstEffect() {
     if (!this->levelFlipping() && !m_isHidden) {
         m_ufoClickParticles->resumeSystem();
@@ -496,7 +494,7 @@ void PlayerObject::playingEndEffect() {
 
 void PlayerObject::preCollision() {
     m_wasTeleported = false;
-    m_ringJumpRelated = false;
+    m_usedRingThisStep = false;
     m_collidedTopMinY = 0.0;
     m_collidedBottomMaxY = 0.0;
     m_collidedLeftMaxX = 0.0;
@@ -535,7 +533,7 @@ void PlayerObject::redirectDash(float rotation) {
         dashPos.x = dashPos.x * cosDir - dashPos.y * sinDir;
         dashPos.y = dashPos.x * sinDir + dashPos.y * cosDir;
     }
-    auto angle = ((int)-(atan2f(dashPos.y, dashPos.x) * (180.f / M_PI)) + (m_isSideways ? 90 : 0)) % 360;
+    auto angle = ((int)-(atan2f(dashPos.y, dashPos.x) * (180.f / M_PI)) + (m_isSideways ? -90 : 0)) % 360;
     m_dashAngle = -(angle + (angle < 0 ? 360 : 0));
     m_dashX = m_isSideways ? dashPos.y : dashPos.x;
     m_dashY = m_isSideways ? dashPos.x : dashPos.y;
@@ -591,7 +589,7 @@ void PlayerObject::resetStateVariables() {
     m_stateScale = 0;
     m_stateForce = 0;
     m_stateForceVector = cocos2d::CCPoint { 0.f, 0.f };
-    m_jumpPadRelated.clear();
+    m_touchedForceIds.clear();
 }
 
 void PlayerObject::rotateGameplayOnly(bool sideways) {
@@ -681,6 +679,7 @@ void PlayerObject::touchedObject(GameObject* object) {
                 this->stopDashing();
                 m_jumpBuffered = false;
             }
+            break;
         }
         case 1859: {
             m_stateHitHead = 2;
@@ -691,8 +690,8 @@ void PlayerObject::touchedObject(GameObject* object) {
             auto forceObject = static_cast<ForceBlockGameObject*>(object);
             auto forceID = forceObject->m_forceID;
             if (forceID > 0) {
-                if (m_jumpPadRelated[forceID]) break;
-                m_jumpPadRelated[forceID] = true;
+                if (m_touchedForceIds[forceID]) break;
+                m_touchedForceIds[forceID] = true;
             }
             m_stateForceVector = m_stateForceVector + forceObject->calculateForceToTarget(this);
             auto magnitude = sqrtf(m_stateForceVector.x * m_stateForceVector.x + m_stateForceVector.y * m_stateForceVector.y);
@@ -789,7 +788,7 @@ void PlayerObject::updateStateVariables() {
     m_stateScale--;
     m_stateForce--;
     m_stateForceVector = cocos2d::CCPoint { 0.f, 0.f };
-    m_jumpPadRelated.clear();
+    m_touchedForceIds.clear();
 }
 
 void PlayerObject::updateStaticForce(float rotation, float staticForce, bool additive) {
@@ -803,6 +802,7 @@ void PlayerObject::updateStaticForce(float rotation, float staticForce, bool add
         }
     }
     else {
+        m_isAccelerating = false;
         m_yVelocity = 0.0;
         if (m_isPlatformer) {
             m_platformerXVelocity = 0.0;
@@ -834,3 +834,18 @@ void PlayerObject::updatePlayerScale() {
 }
 #endif
 
+#if defined(GEODE_IS_ARM_MAC)
+void PlayerObject::deactivateParticle() {
+    if (m_hasGroundParticles)
+        m_playerGroundParticles->stopSystem();
+    m_hasGroundParticles = false;
+}
+
+void PlayerObject::stopParticles() {
+    this->deactivateParticle();
+    m_trailingParticles->stopSystem();
+    m_shipClickParticles->stopSystem();
+    m_vehicleGroundParticles->stopSystem();
+    m_robotBurstParticles->stopSystem();
+}
+#endif
